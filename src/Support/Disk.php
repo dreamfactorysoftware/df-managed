@@ -1,11 +1,9 @@
 <?php namespace DreamFactory\Managed\Support;
 
-use DreamFactory\Enterprise\Storage\Exceptions\StorageException;
-
 /**
  * Down and dirty file utility class with a sprinkle of awesomeness
  */
-class Disk
+final class Disk
 {
     //******************************************************************************
     //* Methods
@@ -24,7 +22,6 @@ class Disk
      * @param bool  $recursive mkdir: recursively create directory
      *
      * @return string Returns the path
-     * @throws \DreamFactory\Enterprise\Storage\Exceptions\StorageException
      */
     public static function path(array $parts = [], $create = false, $mode = 0777, $recursive = true)
     {
@@ -32,14 +29,14 @@ class Disk
 
         if (empty($_path)) {
             if ($create) {
-                throw new StorageException('Empty paths cannot be created.');
+                throw new \LogicException('Empty paths cannot be created.');
             }
 
             return null;
         }
 
         if ($create && !static::ensurePath($_path, $mode, $recursive)) {
-            throw new StorageException('Unable to create directory "' . $_path . '".');
+            throw new \RuntimeException('Unable to create directory "' . $_path . '".');
         }
 
         return $_path;

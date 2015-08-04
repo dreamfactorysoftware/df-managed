@@ -1,21 +1,26 @@
 <?php namespace DreamFactory\Managed\Providers;
 
+use DreamFactory\Managed\Services\ManagedService;
 use DreamFactory\Managed\Support\Managed;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Register the storage mount service as a Laravel provider
+ * Register the virtual config manager service as a Laravel provider
  */
-class VirtualConfigServiceProvider extends ServiceProvider
+class ManagedServiceProvider extends ServiceProvider
 {
     //******************************************************************************
     //* Constants
     //******************************************************************************
 
     /**
+     * @type string The key in config() to place the un/managed db config
+     */
+    const DATABASE_CONFIG_KEY = 'database.connections.dreamfactory';
+    /**
      * @type string The name of the service in the IoC
      */
-    const IOC_NAME = 'managed.storage';
+    const IOC_NAME = 'managed.config';
 
     //********************************************************************************
     //* Public Methods
@@ -26,7 +31,11 @@ class VirtualConfigServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        //  Kick off the management interrogation
         Managed::initialize();
+
+        //  Stuff the db config into the config array
+        config([static::DATABASE_CONFIG_KEY => Managed::getDatabaseConfig()]);
     }
 
     /**
@@ -38,7 +47,7 @@ class VirtualConfigServiceProvider extends ServiceProvider
     {
         $this->app->singleton(static::IOC_NAME,
             function ($app) {
-                return new VirtualConfigService($app);
+                return new ManagedService($app);
             });
     }
 }

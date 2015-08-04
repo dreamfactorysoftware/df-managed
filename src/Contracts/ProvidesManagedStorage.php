@@ -1,20 +1,20 @@
 <?php namespace DreamFactory\Managed\Contracts;
 
-interface VirtualConfigProvider
+interface ProvidesManagedStorage
 {
     //******************************************************************************
     //* Methods
     //******************************************************************************
 
     /**
-     * Returns the root of all an instance's storage
+     * Returns the overall root of an instance owner's storage
      *
      * @return string
      */
     public function getRootStoragePath();
 
     /**
-     * Returns the absolute /path/to/app/storage
+     * Returns the absolute path to an instance's storage
      *
      * @param string|null $append If supplied, added to the end of the path
      *
@@ -51,20 +51,4 @@ interface VirtualConfigProvider
      * @return string
      */
     public function getSnapshotPath();
-
-    /**
-     * Returns the instance's absolute /path/to/logs
-     *
-     * @return string
-     */
-    public function getLogPath();
-
-    /**
-     * Returns the absolute /path/to/log/file
-     *
-     * @param string|null $name The name of the log file, instance name used by default
-     *
-     * @return string
-     */
-    public function getLogFile($name = null);
 }

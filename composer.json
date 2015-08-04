@@ -1,6 +1,6 @@
 {
   "name":              "dreamfactory/df-managed",
-  "description":       "DreamFactory Enterprise(tm) Storage Integration Library",
+  "description":       "DreamFactory(tm) Managed Integration Library",
   "homepage":          "https://www.dreamfactory.com/",
   "keywords":          [
     "dreamfactory",
@@ -15,6 +15,10 @@
     {
       "name":  "Jerry Ablan",
       "email": "jerryablan@dreamfactory.com"
+    },
+    {
+      "name":  "David L. Weiner",
+      "email": "davidweiner@dreamfactory.com"
     }
   ],
   "minimum-stability": "dev",

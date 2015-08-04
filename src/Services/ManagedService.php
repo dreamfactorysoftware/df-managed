@@ -1,15 +1,17 @@
 <?php namespace DreamFactory\Managed\Services;
 
-use DreamFactory\Managed\Contracts\VirtualConfigProvider;
+use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
+use DreamFactory\Managed\Contracts\ProvidesManagedStorage;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Support\Disk;
 use DreamFactory\Managed\Support\Managed;
 use Illuminate\Contracts\Foundation\Application;
 
 /**
- * Core instance storage services
+ * A service that returns various configuration data that are common across managed
+ * and unmanaged instances. See the VirtualConfigProvider contract
  */
-class VirtualStorageService implements VirtualConfigProvider
+class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
 {
     //******************************************************************************
     //* Members
@@ -128,5 +130,15 @@ class VirtualStorageService implements VirtualConfigProvider
     public function getLogFile($name = null)
     {
         return Managed::getLogFile($name);
+    }
+
+    /**
+     * Returns the database configuration for an instance
+     *
+     * @return array
+     */
+    public function getDatabaseConfig()
+    {
+        return Managed::getDatabaseConfig();
     }
 }
