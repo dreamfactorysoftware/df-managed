@@ -74,7 +74,7 @@ final class Managed
     {
         static::getCacheKey();
 
-        if (config('app.debug') || !static::loadCachedValues()) {
+        if (!static::loadCachedValues()) {
             //  Discover where I am
             if (!static::getClusterConfiguration()) {
                 logger('Unmanaged instance, ignoring.');
