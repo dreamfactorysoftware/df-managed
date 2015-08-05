@@ -74,6 +74,7 @@ final class Managed
         static::getCacheKey();
 
         if (!static::loadCachedValues()) {
+            logger('DFE: Cache miss');
             //  Discover where I am
             if (!static::getClusterConfiguration()) {
                 logger('Unmanaged instance, ignoring.');
@@ -81,7 +82,7 @@ final class Managed
                 return false;
             }
         }
-
+        logger('DFE: Cache Hit');
         //  Generate a signature for signing payloads...
         static::$accessToken = static::generateSignature();
 
