@@ -202,7 +202,7 @@ final class Managed
 
             static::setConfig([
                 'storage-root'          => rtrim($storageRoot, ' ' . DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
-                'managed.instance-name' => str_replace($_defaultDomain, null, $_host),
+                'instance-name' => str_replace($_defaultDomain, null, $_host),
             ]);
 
             //  It's all good!
