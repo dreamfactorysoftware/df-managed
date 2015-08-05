@@ -256,7 +256,7 @@ final class Managed
     protected static function getClusterConfiguration($key = null, $default = null)
     {
         if (false === static::$config) {
-            $configFile = static::locateClusterEnvironmentFile(EnterpriseDefaults::CLUSTER_MANIFEST_FILE);
+            $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
 
             if (!$configFile || !file_exists($configFile)) {
                 return false;
@@ -436,7 +436,11 @@ final class Managed
             static::$config = array_get($_cache, 'config');
         }
 
-        return !empty(static::$paths) && !empty(static::$config);
+        if (!empty(static::$paths) && !empty(static::$config)) {
+            return static::validateClusterEnvironment();
+        }
+
+        return false;
     }
 
     /**
