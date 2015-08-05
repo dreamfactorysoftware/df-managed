@@ -255,29 +255,28 @@ final class Managed
      */
     protected static function getClusterConfiguration($key = null, $default = null)
     {
-        if (false === static::$config) {
-            $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
 
-            if (!$configFile || !file_exists($configFile)) {
+        $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
+
+        if (!$configFile || !file_exists($configFile)) {
+            return false;
+        }
+
+        logger('cluster config found: ' . $configFile);
+
+        try {
+            logger('cluster config read: ' . ($_json = file_get_contents($configFile)));
+            static::$config = Json::decode($_json);
+
+            //  Cluster validation determines if an instance is managed or not
+            if (false === (static::$managed = static::validateClusterEnvironment())) {
                 return false;
             }
+        } catch (\Exception $_ex) {
+            logger('Cluster configuration file is not in a recognizable format.');
+            static::$config = false;
 
-            logger('cluster config found: ' . $configFile);
-
-            try {
-                logger('cluster config read: ' . ($_json = file_get_contents($configFile)));
-                static::$config = Json::decode($_json);
-
-                //  Cluster validation determines if an instance is managed or not
-                if (false === (static::$managed = static::validateClusterEnvironment())) {
-                    return false;
-                }
-            } catch (\Exception $_ex) {
-                logger('Cluster configuration file is not in a recognizable format.');
-                static::$config = false;
-
-                throw new \RuntimeException('This instance is not configured properly for your system environment.');
-            }
+            throw new \RuntimeException('This instance is not configured properly for your system environment.');
         }
 
         return null === $key ? static::$config : static::getConfig($key, $default);
