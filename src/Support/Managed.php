@@ -1,7 +1,6 @@
 <?php namespace DreamFactory\Managed\Support;
 
 use DreamFactory\Library\Utility\Curl;
-use DreamFactory\Library\Utility\Enums\EnterpriseDefaults;
 use DreamFactory\Library\Utility\IfSet;
 use DreamFactory\Library\Utility\Json;
 use DreamFactory\Managed\Enums\ManagedDefaults;
