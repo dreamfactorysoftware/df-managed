@@ -427,7 +427,7 @@ final class Managed
 
         /** @noinspection PhpUndefinedMethodInspection */
         $_cache = Cache::get(static::$cacheKey);
-
+        logger('Cached value: ' . json_encode($_cache));
         if (!empty($_cache) && is_array($_cache)) {
             static::$config = $_cache;
             static::$paths = static::getConfig('paths');
