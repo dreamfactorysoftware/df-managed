@@ -81,22 +81,54 @@ final class Managed
 
                 return false;
             }
+
+            //  Discover our secret powers...
+            if (!static::interrogateCluster()) {
+                logger('cluster unreachable or in disarray.');
+
+                return false;
+            }
         } else {
             logger('DFE: Cache Hit');
-        }
-
-        //  Generate a signature for signing payloads...
-        static::$accessToken = static::generateSignature();
-
-        if (!static::interrogateCluster()) {
-            logger('cluster unreachable or in disarray.');
-
-            throw new \RuntimeException('Unmanaged instance detected.', Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
         logger('managed instance bootstrap complete.');
 
         return true;
+    }
+
+    /**
+     * @param string $key
+     * @param mixed  $default
+     *
+     * @return array|mixed
+     */
+    protected static function getClusterConfiguration($key = null, $default = null)
+    {
+        $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
+
+        if (!$configFile || !file_exists($configFile)) {
+            return false;
+        }
+
+        logger('cluster config found: ' . $configFile);
+
+        try {
+            logger('cluster config read: ' . ($_json = file_get_contents($configFile)));
+            static::$config = Json::decode($_json);
+
+            //  Cluster validation determines if an instance is managed or not
+            if (false === (static::$managed = static::validateConfiguration())) {
+                return false;
+            }
+        } catch (\Exception $_ex) {
+            logger('Cluster configuration file is not in a recognizable format.');
+            static::$config = false;
+
+            throw new \RuntimeException('This instance is not configured properly for your system environment.');
+        }
+
+        return null === $key ? static::$config : static::getConfig($key, $default);
     }
 
     /**
@@ -106,6 +138,9 @@ final class Managed
      */
     protected static function interrogateCluster()
     {
+        //  Generate a signature for signing payloads...
+        static::$accessToken = static::generateSignature();
+
         //  Get my config from console
         $_status = static::callConsole('status', ['id' => $_id = static::getInstanceName()]);
 
@@ -166,9 +201,11 @@ final class Managed
     }
 
     /**
-     * @return array
+     * Validates that the required values are in static::$config
+     *
+     * @return bool
      */
-    protected static function validateClusterEnvironment()
+    protected static function validateConfiguration()
     {
         try {
             //  Can we build the API url
@@ -194,7 +231,7 @@ final class Managed
                     return false;
                 }
 
-                static::setConfig('managed.default-domain', $_defaultDomain);
+                static::setConfig('default-domain', $_defaultDomain);
             }
 
             if (empty($storageRoot = static::getConfig('storage-root'))) {
@@ -248,41 +285,6 @@ final class Managed
 
             return false;
         }
-    }
-
-    /**
-     * @param string $key
-     * @param mixed  $default
-     *
-     * @return array|mixed
-     */
-    protected static function getClusterConfiguration($key = null, $default = null)
-    {
-
-        $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
-
-        if (!$configFile || !file_exists($configFile)) {
-            return false;
-        }
-
-        logger('cluster config found: ' . $configFile);
-
-        try {
-            logger('cluster config read: ' . ($_json = file_get_contents($configFile)));
-            static::$config = Json::decode($_json);
-
-            //  Cluster validation determines if an instance is managed or not
-            if (false === (static::$managed = static::validateClusterEnvironment())) {
-                return false;
-            }
-        } catch (\Exception $_ex) {
-            logger('Cluster configuration file is not in a recognizable format.');
-            static::$config = false;
-
-            throw new \RuntimeException('This instance is not configured properly for your system environment.');
-        }
-
-        return null === $key ? static::$config : static::getConfig($key, $default);
     }
 
     /**
@@ -417,20 +419,12 @@ final class Managed
     }
 
     /**
-     * Refreshes the cache with fresh values
-     */
-    protected static function freshenCache()
-    {
-        /** @noinspection PhpUndefinedMethodInspection */
-        Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
-        static::$paths = static::getConfig('paths', []);
-    }
-
-    /**
      * Reload the cache
      */
     protected static function loadCachedValues()
     {
+        //@todo does a successful Cache::get extend TTL? Need to find out.
+
         /** @noinspection PhpUndefinedMethodInspection */
         $_cache = Cache::get(static::$cacheKey);
 
@@ -438,10 +432,20 @@ final class Managed
             static::$config = $_cache;
             static::$paths = static::getConfig('paths');
 
-            return static::validateClusterEnvironment();
+            return static::validateConfiguration();
         }
 
         return false;
+    }
+
+    /**
+     * Refreshes the cache with fresh values
+     */
+    protected static function freshenCache()
+    {
+        /** @noinspection PhpUndefinedMethodInspection */
+        Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
+        static::$paths = static::getConfig('paths', []);
     }
 
     /**
