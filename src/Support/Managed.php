@@ -1,7 +1,6 @@
 <?php namespace DreamFactory\Managed\Support;
 
 use DreamFactory\Library\Utility\Curl;
-use DreamFactory\Library\Utility\Enums\EnterpriseDefaults;
 use DreamFactory\Library\Utility\IfSet;
 use DreamFactory\Library\Utility\Json;
 use DreamFactory\Managed\Enums\ManagedDefaults;
@@ -74,13 +73,16 @@ final class Managed
     {
         static::getCacheKey();
 
-        if (config('app.debug') || !static::loadCachedValues()) {
+        if (!static::loadCachedValues()) {
+            logger('DFE: Cache miss');
             //  Discover where I am
             if (!static::getClusterConfiguration()) {
                 logger('Unmanaged instance, ignoring.');
 
                 return false;
             }
+        } else {
+            logger('DFE: Cache Hit');
         }
 
         //  Generate a signature for signing payloads...
@@ -202,8 +204,8 @@ final class Managed
             }
 
             static::setConfig([
-                'storage-root'          => rtrim($storageRoot, ' ' . DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
-                'managed.instance-name' => str_replace($_defaultDomain, null, $_host),
+                'storage-root'  => rtrim($storageRoot, ' ' . DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
+                'instance-name' => str_replace($_defaultDomain, null, $_host),
             ]);
 
             //  It's all good!
@@ -256,29 +258,28 @@ final class Managed
      */
     protected static function getClusterConfiguration($key = null, $default = null)
     {
-        if (false === static::$config) {
-            $configFile = static::locateClusterEnvironmentFile(EnterpriseDefaults::CLUSTER_MANIFEST_FILE);
 
-            if (!$configFile || !file_exists($configFile)) {
+        $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
+
+        if (!$configFile || !file_exists($configFile)) {
+            return false;
+        }
+
+        logger('cluster config found: ' . $configFile);
+
+        try {
+            logger('cluster config read: ' . ($_json = file_get_contents($configFile)));
+            static::$config = Json::decode($_json);
+
+            //  Cluster validation determines if an instance is managed or not
+            if (false === (static::$managed = static::validateClusterEnvironment())) {
                 return false;
             }
+        } catch (\Exception $_ex) {
+            logger('Cluster configuration file is not in a recognizable format.');
+            static::$config = false;
 
-            logger('cluster config found: ' . $configFile);
-
-            try {
-                logger('cluster config read: ' . ($_json = file_get_contents($configFile)));
-                static::$config = Json::decode($_json);
-
-                //  Cluster validation determines if an instance is managed or not
-                if (false === (static::$managed = static::validateClusterEnvironment())) {
-                    return false;
-                }
-            } catch (\Exception $_ex) {
-                logger('Cluster configuration file is not in a recognizable format.');
-                static::$config = false;
-
-                throw new \RuntimeException('This instance is not configured properly for your system environment.');
-            }
+            throw new \RuntimeException('This instance is not configured properly for your system environment.');
         }
 
         return null === $key ? static::$config : static::getConfig($key, $default);
@@ -436,7 +437,7 @@ final class Managed
             static::$config = $_cache;
             static::$paths = static::getConfig('paths');
 
-            return true;
+            return static::validateClusterEnvironment();
         }
 
         return false;
