@@ -124,20 +124,21 @@ final class Managed
         }
 
         //  Stuff all the unadulterated data into the config
+        $_paths = (array)data_get($_status, 'response.metadata.paths', []);
+        $_paths['storage-root'] = static::$storageRoot = static::getConfig('storage-root', storage_path());
+
         static::setConfig([
             //  Storage root is the top-most directory under which all instance storage lives
-            'storage-root'  => static::$storageRoot = static::getConfig('storage-root', storage_path()),
+            'storage-root'  => static::$storageRoot,
             //  The storage map defines where exactly under $storageRoot the instance's storage resides
             'storage-map'   => (array)data_get($_status, 'response.metadata.storage-map', []),
             'home-links'    => (array)data_get($_status, 'response.home-links'),
             'managed-links' => (array)data_get($_status, 'response.managed-links'),
             'env'           => (array)data_get($_status, 'response.metadata.env', []),
             'audit'         => (array)data_get($_status, 'response.metadata.audit', []),
-            'paths'         => $_paths = (array)data_get($_status, 'response.metadata.paths', []),
         ]);
 
         //  Clean up the paths accordingly
-        $_paths['storage-root'] = static::$storageRoot;
         $_paths['log-path'] =
             Disk::segment([array_get($_paths, 'private-path', storage_path()), ManagedDefaults::PRIVATE_LOG_PATH_NAME],
                 false);
@@ -147,14 +148,14 @@ final class Managed
             $_paths[$_key] = Disk::path([static::$storageRoot, $_path], true, 02775, true);
         }
 
-        //  Now place our sanitized data back into the config
+        //  Now place our paths into the config
         static::setConfig('paths', (array)$_paths);
 
         //  Get the database config plucking the first entry if one.
-        static::setConfig('db', (array)head(data_get($_status, 'response.metadata.db', [])));
+        static::setConfig('db', (array)head((array)data_get($_status, 'response.metadata.db', [])));
 
-        if (false === empty($_status->response->metadata->limits)) {
-            static::$config['limits'] = (array)$_status->response->metadata->limits;
+        if (!empty($_limits = (array)data_get($_status, 'response.metadata.limits', []))) {
+            static::setConfig('limits', $_limits);
         }
 
         static::freshenCache();
@@ -420,9 +421,7 @@ final class Managed
     protected static function freshenCache()
     {
         /** @noinspection PhpUndefinedMethodInspection */
-        Cache::put(static::getCacheKey(),
-            ['paths' => static::$paths, 'config' => static::$config],
-            static::CACHE_TTL);
+        Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
     }
 
     /**
@@ -431,12 +430,16 @@ final class Managed
     protected static function loadCachedValues()
     {
         /** @noinspection PhpUndefinedMethodInspection */
-        if (is_array($_cache = Cache::get(static::$cacheKey))) {
-            static::$paths = array_get($_cache, 'paths');
-            static::$config = array_get($_cache, 'config');
+        $_cache = Cache::get(static::$cacheKey);
+
+        if (!empty($_cache) && is_array($_cache)) {
+            static::$config = $_cache;
+            static::$paths = static::getConfig('paths');
+
+            return true;
         }
 
-        return !empty(static::$paths) && !empty(static::$config);
+        return false;
     }
 
     /**
