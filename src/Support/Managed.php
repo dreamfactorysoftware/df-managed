@@ -503,8 +503,14 @@ final class Managed
      */
     public static function getDatabaseConfig()
     {
-        return static::isManagedInstance() ? static::getConfig('db')
-            : config('database.connections.' . config('database.default'), []);
+        $_isManaged = static::isManagedInstance();
+        $_dbConfig = static::getConfig('db');
+        $_defaultDB = config('database.connections.' . config('database.default'), []);
+
+        return $_isManaged ? $_dbConfig : $_defaultDB;
+
+//        return static::isManagedInstance() ? static::getConfig('db')
+//            : config('database.connections.' . config('database.default'), []);
     }
 
     /**
