@@ -423,6 +423,7 @@ final class Managed
     {
         /** @noinspection PhpUndefinedMethodInspection */
         Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
+        static::$paths = static::getConfig('paths', []);
     }
 
     /**
