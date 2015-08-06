@@ -81,8 +81,10 @@ final class Managed
 
                 return false;
             }
+        } else {
+            logger('DFE: Cache Hit');
         }
-        logger('DFE: Cache Hit');
+
         //  Generate a signature for signing payloads...
         static::$accessToken = static::generateSignature();
 
