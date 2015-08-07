@@ -72,7 +72,7 @@ final class Managed
     public static function initialize()
     {
         static::getCacheKey();
-
+        logger('Cache Key: ' . static::$cacheKey);
         if (!static::loadCachedValues()) {
             logger('DFE: Cache miss');
             //  Discover where I am
