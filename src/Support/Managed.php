@@ -510,6 +510,11 @@ final class Managed
         $_dbConfig = static::getConfig('db');
         $_defaultDB = config('database.connections.' . config('database.default'), []);
 
+        logger('Cache Key: ' . static::$cacheKey);
+        logger('Managed: ' . $_isManaged);
+        logger('DB Config:' . json_encode($_dbConfig));
+        logger('Default DB Config: ' . json_encode($_defaultDB));
+
         return $_isManaged ? $_dbConfig : $_defaultDB;
 
 //        return static::isManagedInstance() ? static::getConfig('db')
