@@ -106,7 +106,7 @@ final class Managed
     protected static function getClusterConfiguration($key = null, $default = null)
     {
         $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
-
+        logger('Config File: ' . $configFile);
         if (!$configFile || !file_exists($configFile)) {
             return false;
         }
@@ -119,7 +119,7 @@ final class Managed
 
             //  Cluster validation determines if an instance is managed or not
             static::$managed = static::validateConfiguration();
-            logger('Managed: ' . static::$managed === true ? 'true' : 'false');
+            logger('Managed: ' . static::$managed);
 
             if (false === static::$managed) {
                 return false;
