@@ -118,7 +118,10 @@ final class Managed
             static::$config = Json::decode($_json);
 
             //  Cluster validation determines if an instance is managed or not
-            if (false === (static::$managed = static::validateConfiguration())) {
+            static::$managed = static::validateConfiguration();
+            logger('Managed: ' . static::$managed === true ? 'true' : 'false');
+
+            if (false === static::$managed) {
                 return false;
             }
         } catch (\Exception $_ex) {
