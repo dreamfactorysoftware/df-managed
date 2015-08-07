@@ -72,9 +72,9 @@ final class Managed
     public static function initialize()
     {
         static::getCacheKey();
-        logger('Cache Key: ' . static::$cacheKey);
+
         if (!static::loadCachedValues()) {
-            logger('DFE: Cache miss');
+
             //  Discover where I am
             if (!static::getClusterConfiguration()) {
                 logger('Unmanaged instance, ignoring.');
@@ -88,8 +88,6 @@ final class Managed
 
                 return false;
             }
-        } else {
-            logger('DFE: Cache Hit');
         }
 
         logger('managed instance bootstrap complete.');
@@ -106,22 +104,17 @@ final class Managed
     protected static function getClusterConfiguration($key = null, $default = null)
     {
         $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
-        logger('Config File: ' . $configFile);
+
         if (!$configFile || !file_exists($configFile)) {
             return false;
         }
-
-        logger('cluster config found: ' . $configFile);
 
         try {
             logger('cluster config read: ' . ($_json = file_get_contents($configFile)));
             static::$config = Json::decode($_json);
 
             //  Cluster validation determines if an instance is managed or not
-            static::$managed = static::validateConfiguration();
-            logger('Managed: ' . static::$managed);
-
-            if (false === static::$managed) {
+            if (false === (static::$managed = static::validateConfiguration())) {
                 return false;
             }
         } catch (\Exception $_ex) {
@@ -223,7 +216,7 @@ final class Managed
 
             //  And default domain
             $_host = static::getHostName();
-            logger('Host Name: ' . $_host);
+
             if (!empty($_defaultDomain = ltrim(static::getConfig('default-domain'), '. '))) {
                 $_defaultDomain = '.' . $_defaultDomain;
 
@@ -247,7 +240,7 @@ final class Managed
                 'storage-root'  => rtrim($storageRoot, ' ' . DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
                 'instance-name' => str_replace($_defaultDomain, null, $_host),
             ]);
-            logger('Instance Name: ' . str_replace($_defaultDomain, null, $_host));
+
             //  It's all good!
             return true;
         } catch (\InvalidArgumentException $_ex) {
@@ -430,7 +423,7 @@ final class Managed
 
         /** @noinspection PhpUndefinedMethodInspection */
         $_cache = Cache::get(static::$cacheKey);
-        logger('Cached value: ' . json_encode($_cache));
+
         if (!empty($_cache) && is_array($_cache)) {
             static::$config = $_cache;
             static::$paths = static::getConfig('paths');
@@ -506,19 +499,8 @@ final class Managed
      */
     public static function getDatabaseConfig()
     {
-        $_isManaged = static::isManagedInstance();
-        $_dbConfig = static::getConfig('db');
-        $_defaultDB = config('database.connections.' . config('database.default'), []);
-
-        logger('Cache Key: ' . static::$cacheKey);
-        logger('Managed: ' . $_isManaged);
-        logger('DB Config:' . json_encode($_dbConfig));
-        logger('Default DB Config: ' . json_encode($_defaultDB));
-
-        return $_isManaged ? $_dbConfig : $_defaultDB;
-
-//        return static::isManagedInstance() ? static::getConfig('db')
-//            : config('database.connections.' . config('database.default'), []);
+        return static::isManagedInstance() ? static::getConfig('db')
+            : config('database.connections.' . config('database.default'), []);
     }
 
     /**
