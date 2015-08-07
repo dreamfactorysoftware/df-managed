@@ -36,7 +36,6 @@ class ManagedServiceProvider extends ServiceProvider
 
         //  Stuff the db config into the config array
         config([static::DATABASE_CONFIG_KEY => Managed::getDatabaseConfig()]);
-        logger('Instance DB Config: ' . json_encode(Managed::getDatabaseConfig()));
     }
 
     /**
