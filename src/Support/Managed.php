@@ -94,7 +94,7 @@ final class Managed
 
         logger('managed instance bootstrap complete.');
 
-        return true;
+        return static::$managed = true;
     }
 
     /**
