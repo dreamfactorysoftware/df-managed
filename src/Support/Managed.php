@@ -223,7 +223,7 @@ final class Managed
 
             //  And default domain
             $_host = static::getHostName();
-
+            logger('Host Name: ' . $_host);
             if (!empty($_defaultDomain = ltrim(static::getConfig('default-domain'), '. '))) {
                 $_defaultDomain = '.' . $_defaultDomain;
 
@@ -247,7 +247,7 @@ final class Managed
                 'storage-root'  => rtrim($storageRoot, ' ' . DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
                 'instance-name' => str_replace($_defaultDomain, null, $_host),
             ]);
-
+            logger('Instance Name: ' . str_replace($_defaultDomain, null, $_host));
             //  It's all good!
             return true;
         } catch (\InvalidArgumentException $_ex) {
