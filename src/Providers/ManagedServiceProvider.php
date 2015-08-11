@@ -35,7 +35,8 @@ class ManagedServiceProvider extends ServiceProvider
         Managed::initialize();
 
         //  Stuff the db config into the config array
-        config([static::DATABASE_CONFIG_KEY => Managed::getDatabaseConfig()]);
+        config([static::DATABASE_CONFIG_KEY => Managed::getDatabaseConfig(),
+            'cache.stores.file.path' => Managed::getPrivatePath()]);
     }
 
     /**
