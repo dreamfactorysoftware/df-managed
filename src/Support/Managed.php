@@ -3,6 +3,7 @@
 use DreamFactory\Library\Utility\Curl;
 use DreamFactory\Library\Utility\IfSet;
 use DreamFactory\Library\Utility\Json;
+use DreamFactory\Library\Utility\JsonFile;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
@@ -45,19 +46,19 @@ final class Managed
     /**
      * @type array
      */
-    protected static $config = false;
+    protected static $config = [];
     /**
      * @type bool
      */
     protected static $managed = false;
     /**
-     * @type array The storage paths
-     */
-    protected static $paths = [];
-    /**
      * @type string The root storage directory
      */
     protected static $storageRoot;
+    /**
+     * @type array The storage paths
+     */
+    protected static $paths = [];
 
     //*************************************************************************
     //* Methods
@@ -77,13 +78,20 @@ final class Managed
 
             //  Discover where I am
             if (!static::getClusterConfiguration()) {
+                // Set sane unmanaged defaults
+                static::$paths = [
+                    'storage-path'       => storage_path(),
+                    'private-path'       => storage_path() . '/.private',
+                    'owner-private-path' => storage_path() . '/.owner'
+                ];
                 logger('Unmanaged instance, ignoring.');
-
                 return false;
             }
 
             //  Discover our secret powers...
-            if (!static::interrogateCluster()) {
+            try {
+                static::interrogateCluster();
+            } catch (\RuntimeException $e) {
                 logger('cluster unreachable or in disarray.');
 
                 return false;
@@ -110,16 +118,18 @@ final class Managed
         }
 
         try {
-            logger('cluster config read: ' . ($_json = file_get_contents($configFile)));
-            static::$config = Json::decode($_json);
+            static::$config = JsonFile::decodeFile($configFile);
+
+            logger('cluster config read: ' . json_encode(static::$config));
 
             //  Cluster validation determines if an instance is managed or not
-            if (false === (static::$managed = static::validateConfiguration())) {
+            if (!static::validateConfiguration()) {
                 return false;
             }
         } catch (\Exception $_ex) {
+            static::$config = [];
+
             logger('Cluster configuration file is not in a recognizable format.');
-            static::$config = false;
 
             throw new \RuntimeException('This instance is not configured properly for your system environment.');
         }
@@ -173,12 +183,12 @@ final class Managed
 
         //  Clean up the paths accordingly
         $_paths['log-path'] =
-            Disk::segment([array_get($_paths, 'private-path', storage_path()), ManagedDefaults::PRIVATE_LOG_PATH_NAME],
+            Disk::segment([array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME), ManagedDefaults::PRIVATE_LOG_PATH_NAME],
                 false);
 
         //  prepend real base directory to all collected paths and cache statically
-        foreach (array_except($_paths, ['storage-root']) as $_key => $_path) {
-            $_paths[$_key] = Disk::path([static::$storageRoot, $_path], true, 02775, true);
+        foreach (array_except($_paths, ['storage-root', 'storage-map']) as $_key => $_path) {
+            $_paths[$_key] = Disk::path([static::$storageRoot, $_path], true, 0777, true);
         }
 
         //  Now place our paths into the config
