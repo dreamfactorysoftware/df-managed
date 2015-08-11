@@ -65,7 +65,7 @@ final class Disk
             $leading && 0 !== strpos($_result, DIRECTORY_SEPARATOR, 0) && $_result = DIRECTORY_SEPARATOR . $_result;
         }
 
-        return $_result;
+        return str_replace('//', '/', $_result);
     }
 
     /**
