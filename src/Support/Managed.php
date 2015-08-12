@@ -570,7 +570,7 @@ final class Managed
     /** Returns cache root */
     public static function getCacheRoot()
     {
-        return sys_get_temp_dir() . "/.df/";
+        return rtrim(sys_get_temp_dir(), '/') . "/.df/";
 
     }
 
