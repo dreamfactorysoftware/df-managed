@@ -577,4 +577,12 @@ final class Managed
         return sys_get_temp_dir() . "/.df/" . $hostname;
 
     }
+
+    /** Returns cache key prefix for non disk based caches */
+    public static function getCacheKeyPrefix()
+    {
+        $hostname = md5(( ( isset( $_SERVER['HTTP_HOST'] ) ) ? $_SERVER['HTTP_HOST'] : gethostname() ));
+
+        return 'dreamfactory' . $hostname . ':';
+    }
 }
