@@ -567,12 +567,19 @@ final class Managed
         return static::$storageRoot;
     }
 
+    /** Returns cache root */
+    public static function getCacheRoot()
+    {
+        return sys_get_temp_dir() . "/.df/";
+
+    }
+
     /** Returns cache path qualified by hostname */
     public static function getCachePath()
     {
         $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
 
-        return sys_get_temp_dir() . "/.df/" . $hostname;
+        return static::getCacheRoot() . $hostname;
 
     }
 
