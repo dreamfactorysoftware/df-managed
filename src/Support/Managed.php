@@ -436,7 +436,6 @@ final class Managed
         // Need to set the cache path before every cache operation to make sure the cache does not get
         // shared between instances
         config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
-        logger('Cache Path set to ' . static::getCachePath());
 
         /** @noinspection PhpUndefinedMethodInspection */
         $_cache = Cache::get(static::$cacheKey);
@@ -459,7 +458,6 @@ final class Managed
         // Need to set the cache path before every cache operation to make sure the cache does not get
         // shared between instances
         config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
-        logger('Cache Path set to ' . static::getCachePath());
 
         /** @noinspection PhpUndefinedMethodInspection */
         Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
