@@ -30,6 +30,8 @@ final class Managed
      * @type int The number of minutes to keep managed instance data cached
      */
     const CACHE_TTL = ManagedDefaults::CONFIG_CACHE_TTL;
+    /** cache path key in the config */
+    const CACHE_CONFIG_KEY = 'cache.stores.file.path';
 
     //******************************************************************************
     //* Members
@@ -431,6 +433,10 @@ final class Managed
     {
         //@todo does a successful Cache::get extend TTL? Need to find out.
 
+        // Need to set the cache path before every cache operation to make sure the cache does not get
+        // shared between instances
+        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+
         /** @noinspection PhpUndefinedMethodInspection */
         $_cache = Cache::get(static::$cacheKey);
 
@@ -449,6 +455,10 @@ final class Managed
      */
     protected static function freshenCache()
     {
+        // Need to set the cache path before every cache operation to make sure the cache does not get
+        // shared between instances
+        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+
         /** @noinspection PhpUndefinedMethodInspection */
         Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
         static::$paths = static::getConfig('paths', []);
@@ -555,5 +565,14 @@ final class Managed
         }
 
         return static::$storageRoot;
+    }
+
+    /** Returns cache path qualified by hostname */
+    public static function getCachePath()
+    {
+        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
+
+        return sys_get_temp_dir() . "/.df/" . $hostname;
+
     }
 }
