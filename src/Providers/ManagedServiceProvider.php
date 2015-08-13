@@ -33,9 +33,10 @@ class ManagedServiceProvider extends ServiceProvider
     {
         //  Kick off the management interrogation
         Managed::initialize();
-
+        $_dbConfig = Managed::getDatabaseConfig();
         //  Stuff the db config into the config array
-        config([static::DATABASE_CONFIG_KEY => Managed::getDatabaseConfig()]);
+        config([static::DATABASE_CONFIG_KEY => $_dbConfig]);
+        logger('DB Config from Managed Service: ' . print_r($_dbConfig, true));
 
     }
 
