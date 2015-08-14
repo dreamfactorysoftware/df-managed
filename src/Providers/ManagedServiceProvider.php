@@ -38,8 +38,6 @@ class ManagedServiceProvider extends ServiceProvider
         //  Stuff the db config into the config array
         config([static::DATABASE_CONFIG_KEY => $_dbConfig]);
         logger('DB Config from Managed Service: ' . print_r($_dbConfig, true));
-        Artisan::call('config:cache');
-
     }
 
     /**
