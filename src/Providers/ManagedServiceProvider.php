@@ -2,6 +2,7 @@
 
 use DreamFactory\Managed\Services\ManagedService;
 use DreamFactory\Managed\Support\Managed;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -37,6 +38,7 @@ class ManagedServiceProvider extends ServiceProvider
         //  Stuff the db config into the config array
         config([static::DATABASE_CONFIG_KEY => $_dbConfig]);
         logger('DB Config from Managed Service: ' . print_r($_dbConfig, true));
+        Artisan::call('config:cache');
 
     }
 
