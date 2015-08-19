@@ -68,7 +68,12 @@ class ManagedServiceProvider extends ServiceProvider
         /**
          *************************************************************************************************************/
 
-        logger('DB Config from Managed Service: ' . print_r($_dbConfig, true));
+        if (env('APP_DEBUG', false)) {
+            logger('DB Config from Managed Service: Host = ' .
+                $_dbConfig['host'] .
+                ' DataBase = ' .
+                $_dbConfig['database']);
+        }
     }
 
     /**
@@ -79,7 +84,7 @@ class ManagedServiceProvider extends ServiceProvider
     public function register()
     {
         $this->app->singleton(static::IOC_NAME,
-            function ($app) {
+            function ($app){
                 return new ManagedService($app);
             });
     }
