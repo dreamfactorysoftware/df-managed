@@ -94,13 +94,13 @@ final class Managed
             try {
                 static::interrogateCluster();
             } catch (\RuntimeException $e) {
-                logger('cluster unreachable or in disarray.');
+                logger('Cluster unreachable or in disarray. '.$e->getMessage());
 
                 return false;
             }
         }
 
-        logger('managed instance bootstrap complete.');
+        logger('Managed instance bootstrap complete.');
 
         return static::$managed = true;
     }
@@ -122,7 +122,7 @@ final class Managed
         try {
             static::$config = JsonFile::decodeFile($configFile);
 
-            logger('cluster config read: ' . json_encode(static::$config));
+            logger('Cluster config read from '.$configFile);
 
             //  Cluster validation determines if an instance is managed or not
             if (!static::validateConfiguration()) {
@@ -152,12 +152,13 @@ final class Managed
         //  Get my config from console
         $_status = static::callConsole('status', ['id' => $_id = static::getInstanceName()]);
 
-        logger('ops/status response: ' . (Json::encode($_status) ?: print_r($_status, true)));
 
         if (!($_status instanceof \stdClass) || !data_get($_status, 'response.metadata')) {
             throw new \RuntimeException('Corrupt response during status query for "' . $_id . '".',
                 Response::HTTP_SERVICE_UNAVAILABLE);
         }
+
+        logger('Ops/status response code: ' . $_status->status_code);
 
         if (!$_status->success) {
             throw new \RuntimeException('Unmanaged instance detected.', Response::HTTP_NOT_FOUND);
