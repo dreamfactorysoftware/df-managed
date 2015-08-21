@@ -2,7 +2,6 @@
 
 use DreamFactory\Library\Utility\Curl;
 use DreamFactory\Library\Utility\IfSet;
-use DreamFactory\Library\Utility\Json;
 use DreamFactory\Library\Utility\JsonFile;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use Illuminate\Http\Response;
@@ -84,9 +83,10 @@ final class Managed
                 static::$paths = [
                     'storage-path'       => storage_path(),
                     'private-path'       => storage_path() . '/.private',
-                    'owner-private-path' => storage_path() . '/.owner'
+                    'owner-private-path' => storage_path() . '/.owner',
                 ];
                 logger('Unmanaged instance, ignoring.');
+
                 return false;
             }
 
@@ -94,7 +94,7 @@ final class Managed
             try {
                 static::interrogateCluster();
             } catch (\RuntimeException $e) {
-                logger('Cluster unreachable or in disarray. '.$e->getMessage());
+                logger('Cluster unreachable or in disarray. ' . $e->getMessage());
 
                 return false;
             }
@@ -122,7 +122,7 @@ final class Managed
         try {
             static::$config = JsonFile::decodeFile($configFile);
 
-            logger('Cluster config read from '.$configFile);
+            logger('Cluster config read from ' . $configFile);
 
             //  Cluster validation determines if an instance is managed or not
             if (!static::validateConfiguration()) {
@@ -151,7 +151,6 @@ final class Managed
 
         //  Get my config from console
         $_status = static::callConsole('status', ['id' => $_id = static::getInstanceName()]);
-
 
         if (!($_status instanceof \stdClass) || !data_get($_status, 'response.metadata')) {
             throw new \RuntimeException('Corrupt response during status query for "' . $_id . '".',
@@ -186,7 +185,10 @@ final class Managed
 
         //  Clean up the paths accordingly
         $_paths['log-path'] =
-            Disk::segment([array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME), ManagedDefaults::PRIVATE_LOG_PATH_NAME],
+            Disk::segment([
+                array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
+                ManagedDefaults::PRIVATE_LOG_PATH_NAME,
+            ],
                 false);
 
         //  prepend real base directory to all collected paths and cache statically
@@ -572,7 +574,6 @@ final class Managed
     public static function getCacheRoot()
     {
         return rtrim(sys_get_temp_dir(), '/') . "/.df/";
-
     }
 
     /** Returns cache path qualified by hostname */
@@ -581,13 +582,12 @@ final class Managed
         $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
 
         return static::getCacheRoot() . $hostname;
-
     }
 
     /** Returns cache key prefix for non disk based caches */
     public static function getCacheKeyPrefix()
     {
-        $hostname = md5(( ( isset( $_SERVER['HTTP_HOST'] ) ) ? $_SERVER['HTTP_HOST'] : gethostname() ));
+        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
 
         return 'dreamfactory' . $hostname . ':';
     }
