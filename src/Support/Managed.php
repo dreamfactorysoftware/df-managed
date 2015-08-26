@@ -73,18 +73,13 @@ final class Managed
      */
     public static function initialize()
     {
-        static::getCacheKey();
+        if (static::initializeDefaults()) {
+            return false;
+        }
 
         if (!static::loadCachedValues()) {
-
             //  Discover where I am
             if (!static::getClusterConfiguration()) {
-                // Set sane unmanaged defaults
-                static::$paths = [
-                    'storage-path'       => storage_path(),
-                    'private-path'       => storage_path() . '/.private',
-                    'owner-private-path' => storage_path() . '/.owner',
-                ];
                 logger('Unmanaged instance, ignoring.');
 
                 return false;
@@ -100,226 +95,42 @@ final class Managed
             }
         }
 
-        logger('Managed instance bootstrap complete.');
+        //logger('Managed instance bootstrap complete.');
 
         return static::$managed = true;
     }
 
     /**
-     * @param string $key
-     * @param mixed  $default
-     *
-     * @return array|mixed
+     * @return bool Returns the value of config/df.standalone (true if unmanaged, false if managed)
      */
-    protected static function getClusterConfiguration($key = null, $default = null)
+    public static function initializeDefaults()
     {
-        $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
+        static::getCacheKey();
 
-        if (!$configFile || !file_exists($configFile)) {
-            return false;
-        }
+        static::$paths = [
+            'storage-path'       => storage_path(),
+            'private-path'       => storage_path() . '/.private',
+            'owner-private-path' => storage_path() . '/.private',
+            'cache-root-path'    => storage_path() . '/.private/.cache',
+            'snapshot-path'      => storage_path() . '/.private/snapshots',
+            'log-path'           => storage_path() . ManagedDefaults::PRIVATE_LOG_PATH_NAME,
+        ];
 
-        try {
-            static::$config = JsonFile::decodeFile($configFile);
+        static::$managed = false;
 
-            logger('Cluster config read from ' . $configFile);
-
-            //  Cluster validation determines if an instance is managed or not
-            if (!static::validateConfiguration()) {
-                return false;
-            }
-        } catch (\Exception $_ex) {
-            static::$config = [];
-
-            logger('Cluster configuration file is not in a recognizable format.');
-
-            throw new \RuntimeException('This instance is not configured properly for your system environment.');
-        }
-
-        return null === $key ? static::$config : static::getConfig($key, $default);
+        return config('df.standalone', true);
     }
 
-    /**
-     * Retrieves an instance's status and caches the shaped result
+    /** Returns cache key prefix for non disk based caches
      *
-     * @return array|bool
-     */
-    protected static function interrogateCluster()
-    {
-        //  Generate a signature for signing payloads...
-        static::$accessToken = static::generateSignature();
-
-        //  Get my config from console
-        $_status = static::callConsole('status', ['id' => $_id = static::getInstanceName()]);
-
-        if (!($_status instanceof \stdClass) || !data_get($_status, 'response.metadata')) {
-            throw new \RuntimeException('Corrupt response during status query for "' . $_id . '".',
-                Response::HTTP_SERVICE_UNAVAILABLE);
-        }
-
-        logger('Ops/status response code: ' . $_status->status_code);
-
-        if (!$_status->success) {
-            throw new \RuntimeException('Unmanaged instance detected.', Response::HTTP_NOT_FOUND);
-        }
-
-        if (data_get($_status, 'response.archived', false) || data_get($_status, 'response.deleted', false)) {
-            throw new \RuntimeException('Instance "' . $_id . '" has been archived and/or deleted.',
-                Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        //  Stuff all the unadulterated data into the config
-        $_paths = (array)data_get($_status, 'response.metadata.paths', []);
-        $_paths['storage-root'] = static::$storageRoot = static::getConfig('storage-root', storage_path());
-
-        static::setConfig([
-            //  Storage root is the top-most directory under which all instance storage lives
-            'storage-root'  => static::$storageRoot,
-            //  The storage map defines where exactly under $storageRoot the instance's storage resides
-            'storage-map'   => (array)data_get($_status, 'response.metadata.storage-map', []),
-            'home-links'    => (array)data_get($_status, 'response.home-links'),
-            'managed-links' => (array)data_get($_status, 'response.managed-links'),
-            'env'           => (array)data_get($_status, 'response.metadata.env', []),
-            'audit'         => (array)data_get($_status, 'response.metadata.audit', []),
-        ]);
-
-        //  Clean up the paths accordingly
-        $_paths['log-path'] =
-            Disk::segment([
-                array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
-                ManagedDefaults::PRIVATE_LOG_PATH_NAME,
-            ],
-                false);
-
-        //  prepend real base directory to all collected paths and cache statically
-        foreach (array_except($_paths, ['storage-root', 'storage-map']) as $_key => $_path) {
-            $_paths[$_key] = Disk::path([static::$storageRoot, $_path], true, 0777, true);
-        }
-
-        //  Now place our paths into the config
-        static::setConfig('paths', (array)$_paths);
-
-        //  Get the database config plucking the first entry if one.
-        static::setConfig('db', (array)head((array)data_get($_status, 'response.metadata.db', [])));
-
-        if (!empty($_limits = (array)data_get($_status, 'response.metadata.limits', []))) {
-            static::setConfig('limits', $_limits);
-        }
-
-        static::freshenCache();
-
-        return true;
-    }
-
-    /**
-     * Validates that the required values are in static::$config
+     * @param bool   $trailing  If true, a trailing $separator will be added
+     * @param string $separator The separator between key parts
      *
-     * @return bool
-     */
-    protected static function validateConfiguration()
-    {
-        try {
-            //  Can we build the API url
-            if (!isset(static::$config['console-api-url'], static::$config['console-api-key'])) {
-                logger('Invalid configuration: No "console-api-url" or "console-api-key" in cluster manifest.');
-
-                return false;
-            }
-
-            //  Make it ready for action...
-            static::setConfig('console-api-url', rtrim(static::getConfig('console-api-url'), '/') . '/');
-
-            //  And default domain
-            $_host = static::getHostName();
-
-            if (!empty($_defaultDomain = ltrim(static::getConfig('default-domain'), '. '))) {
-                $_defaultDomain = '.' . $_defaultDomain;
-
-                //	If this isn't an enterprise instance, bail
-                if (false === strpos($_host, $_defaultDomain)) {
-                    logger('Invalid "default-domain" for host "' . $_host . '"');
-
-                    return false;
-                }
-
-                static::setConfig('default-domain', $_defaultDomain);
-            }
-
-            if (empty($storageRoot = static::getConfig('storage-root'))) {
-                logger('No "storage-root" found.');
-
-                return false;
-            }
-
-            static::setConfig([
-                'storage-root'  => rtrim($storageRoot, ' ' . DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
-                'instance-name' => str_replace($_defaultDomain, null, $_host),
-            ]);
-
-            //  It's all good!
-            return true;
-        } catch (\InvalidArgumentException $_ex) {
-            //  The file is bogus or not there
-            return false;
-        }
-    }
-
-    /**
-     * @param string $method
-     * @param string $uri
-     * @param array  $payload
-     * @param array  $curlOptions
-     *
-     * @return bool|\stdClass|array
-     */
-    protected static function callConsole($uri, $payload = [], $curlOptions = [], $method = Request::METHOD_POST)
-    {
-        try {
-            //  Allow full URIs or manufacture one...
-            if ('http' != substr($uri, 0, 4)) {
-                $uri = static::$config['console-api-url'] . ltrim($uri, '/ ');
-            }
-
-            if (false === ($_result = Curl::request($method, $uri, static::signPayload($payload), $curlOptions))) {
-                throw new \RuntimeException('Failed to contact API server.');
-            }
-
-            if (!($_result instanceof \stdClass)) {
-                if (is_string($_result) && (false === json_decode($_result) || JSON_ERROR_NONE !== json_last_error())) {
-                    throw new \RuntimeException('Invalid response received from DFE console.');
-                }
-            }
-
-            return $_result;
-        } catch (\Exception $_ex) {
-            logger('api error: ' . $_ex->getMessage());
-
-            return false;
-        }
-    }
-
-    /**
-     * @param array $payload
-     *
-     * @return array
-     */
-    protected static function signPayload(array $payload)
-    {
-        return array_merge([
-            'client-id'    => static::$config['client-id'],
-            'access-token' => static::$accessToken,
-        ],
-            $payload ?: []);
-    }
-
-    /**
      * @return string
      */
-    protected static function generateSignature()
+    public static function getCacheKeyPrefix($trailing = true, $separator = ':')
     {
-        return hash_hmac(static::$config['signature-method'],
-            static::$config['client-id'],
-            static::$config['client-secret']);
+        return 'dreamfactory' . $separator . md5(static::getHostName()) . ($trailing ? $separator : null);
     }
 
     /**
@@ -327,6 +138,8 @@ final class Managed
      */
     public static function isManagedInstance()
     {
+        empty(static::$paths) && static::initialize();
+
         return static::$managed;
     }
 
@@ -345,7 +158,7 @@ final class Managed
      */
     public static function getStoragePath($append = null)
     {
-        return Disk::segment([array_get(static::$paths, 'storage-path'), $append]);
+        return Disk::path([static::getConfigPath('storage-path'), $append]);
     }
 
     /**
@@ -355,7 +168,7 @@ final class Managed
      */
     public static function getPrivatePath($append = null)
     {
-        return Disk::segment([array_get(static::$paths, 'private-path'), $append]);
+        return Disk::path([static::getConfigPath('private-path'), $append]);
     }
 
     /**
@@ -363,7 +176,7 @@ final class Managed
      */
     public static function getLogPath()
     {
-        return Disk::path([static::getPrivatePath(), ManagedDefaults::PRIVATE_LOG_PATH_NAME], true, 2775);
+        return Disk::path([static::getConfigPath('log-path')]);
     }
 
     /**
@@ -373,7 +186,7 @@ final class Managed
      */
     public static function getLogFile($name = null)
     {
-        return Disk::path([static::getLogPath(), ($name ?: static::getInstanceName() . '.log')]);
+        return Disk::path([static::getConfigPath('log-path'), ($name ?: static::getInstanceName()) . 'log']);
     }
 
     /**
@@ -383,7 +196,7 @@ final class Managed
      */
     public static function getOwnerPrivatePath($append = null)
     {
-        return Disk::segment([array_get(static::$paths, 'owner-private-path'), $append]);
+        return Disk::path([static::getConfigPath('owner-private-path'), $append]);
     }
 
     /**
@@ -406,6 +219,70 @@ final class Managed
         $_value === $default && static::setConfig($key, $_value);
 
         return $_value;
+    }
+
+    /**
+     * Return a database configuration as specified by the console if managed, or config() otherwise.
+     *
+     * @return array
+     */
+    public static function getDatabaseConfig()
+    {
+        return static::isManagedInstance()
+            ? static::getConfig('db') : config('database.connections.' .
+                config('database.default'), []);
+    }
+
+    /**
+     * Return the limits for this instance or an empty array if none.
+     *
+     * @param string|null $limitKey A key within the limits to retrieve. If omitted, all limits are returned
+     * @param array       $default  The default value to return if $limitKey was not found
+     *
+     * @return array|mixed
+     */
+    public static function getLimits($limitKey = null, $default = [])
+    {
+        return null === $limitKey ? static::getConfig('limits', [])
+            : array_get(static::getConfig('limits', []), $limitKey, $default);
+    }
+
+    /**
+     * Return the Console API Key hash or null
+     *
+     * @return string|null
+     */
+    public static function getConsoleKey()
+    {
+        return static::isManagedInstance() ? hash(ManagedDefaults::DEFAULT_SIGNATURE_METHOD,
+            IfSet::getDeep(static::$config, 'env', 'cluster-id') .
+            IfSet::getDeep(static::$config, 'env', 'instance-id')) : null;
+    }
+
+    /** Returns cache root */
+    public static function getCacheRoot()
+    {
+        return static::getConfigPath('cache-root-path', Disk::path([sys_get_temp_dir(), '.df']));
+    }
+
+    /**
+     * Returns cache path qualified by hostname
+     */
+    public static function getCachePath()
+    {
+        return Disk::path([static::getCacheRoot(), md5(static::getHostName())]);
+    }
+
+    /**
+     * Returns the storage root path
+     *
+     * @return string
+     */
+    public static function getStorageRoot()
+    {
+        !static::$storageRoot && static::initialize();
+
+        return Disk::path([static::$storageRoot]);
     }
 
     /**
@@ -502,7 +379,7 @@ final class Managed
      */
     protected static function getHostName()
     {
-        return static::getConfig('managed.host-name', app('request')->server->get('HTTP_HOST', gethostname()));
+        return static::getConfig('managed.host-name', app('request')->getHttpHost() ?: gethostname());
     }
 
     /**
@@ -516,79 +393,235 @@ final class Managed
     }
 
     /**
-     * Return a database configuration as specified by the console if managed, or config() otherwise.
+     * Returns a path from the config'd paths
      *
-     * @return array
-     */
-    public static function getDatabaseConfig()
-    {
-        return static::isManagedInstance() ? static::getConfig('db')
-            : config('database.connections.' . config('database.default'), []);
-    }
-
-    /**
-     * Return the limits for this instance or an empty array if none.
-     *
-     * @param string|null $limitKey A key within the limits to retrieve. If omitted, all limits are returned
-     * @param array       $default  The default value to return if $limitKey was not found
-     *
-     * @return array|mixed
-     */
-    public static function getLimits($limitKey = null, $default = [])
-    {
-        return null === $limitKey
-            ? static::getConfig('limits', [])
-            : array_get(static::getConfig('limits', []),
-                $limitKey,
-                $default);
-    }
-
-    /**
-     * Return the Console API Key hash or null
-     *
-     * @return string|null
-     */
-    public static function getConsoleKey()
-    {
-        return static::isManagedInstance() ? hash(ManagedDefaults::DEFAULT_SIGNATURE_METHOD,
-            IfSet::getDeep(static::$config, 'env', 'cluster-id') . IfSet::getDeep(static::$config,
-                'env',
-                'instance-id')) : null;
-    }
-
-    /**
-     * Returns the storage root path
+     * @param string $key     The path's key
+     * @param null   $default The default value if null
+     * @param bool   $create  Create path if not existent
+     * @param int    $mode    The mode of the path
+     * @param bool   $recursive
      *
      * @return string
      */
-    public static function getStorageRoot()
+    protected static function getConfigPath($key, $default = null, $create = false, $mode = 0777, $recursive = true)
     {
-        if (!static::$config) {
-            static::initialize();
+        empty(static::$paths) && static::initialize();
+
+        $_path = array_get(static::$paths, $key, $default);
+
+        return Disk::path($_path, $create, $mode, $recursive);
+    }
+
+    /**
+     * @param string $method
+     * @param string $uri
+     * @param array  $payload
+     * @param array  $curlOptions
+     *
+     * @return bool|\stdClass|array
+     */
+    protected static function callConsole($uri, $payload = [], $curlOptions = [], $method = Request::METHOD_POST)
+    {
+        try {
+            //  Allow full URIs or manufacture one...
+            if ('http' != substr($uri, 0, 4)) {
+                $uri = static::$config['console-api-url'] . ltrim($uri, '/ ');
+            }
+
+            if (false === ($_result = Curl::request($method, $uri, static::signPayload($payload), $curlOptions))) {
+                throw new \RuntimeException('Failed to contact API server.');
+            }
+
+            if (!($_result instanceof \stdClass)) {
+                if (is_string($_result) && (false === json_decode($_result) || JSON_ERROR_NONE !== json_last_error())) {
+                    throw new \RuntimeException('Invalid response received from DFE console.');
+                }
+            }
+
+            return $_result;
+        } catch (\Exception $_ex) {
+            logger('api error: ' . $_ex->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
+     * @param array $payload
+     *
+     * @return array
+     */
+    protected static function signPayload(array $payload)
+    {
+        return array_merge([
+            'client-id'    => static::$config['client-id'],
+            'access-token' => static::$accessToken,
+        ], $payload ?: []);
+    }
+
+    /**
+     * @return string
+     */
+    protected static function generateSignature()
+    {
+        return hash_hmac(static::$config['signature-method'], static::$config['client-id'],
+            static::$config['client-secret']);
+    }
+
+    /**
+     * @param string $key
+     * @param mixed  $default
+     *
+     * @return array|mixed
+     */
+    protected static function getClusterConfiguration($key = null, $default = null)
+    {
+        $configFile = static::locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
+
+        if (!$configFile || !file_exists($configFile)) {
+            return false;
         }
 
-        return static::$storageRoot;
+        try {
+            static::$config = JsonFile::decodeFile($configFile);
+
+            logger('Cluster config read from ' . $configFile);
+
+            //  Cluster validation determines if an instance is managed or not
+            if (!static::validateConfiguration()) {
+                return false;
+            }
+        } catch (\Exception $_ex) {
+            static::$config = [];
+
+            logger('Cluster configuration file is not in a recognizable format.');
+
+            throw new \RuntimeException('This instance is not configured properly for your system environment.');
+        }
+
+        return null === $key ? static::$config : static::getConfig($key, $default);
     }
 
-    /** Returns cache root */
-    public static function getCacheRoot()
+    /**
+     * Retrieves an instance's status and caches the shaped result
+     *
+     * @return array|bool
+     */
+    protected static function interrogateCluster()
     {
-        return rtrim(sys_get_temp_dir(), '/') . "/.df/";
+        //  Generate a signature for signing payloads...
+        static::$accessToken = static::generateSignature();
+
+        //  Get my config from console
+        $_status = static::callConsole('status', ['id' => $_id = static::getInstanceName()]);
+
+        if (!($_status instanceof \stdClass) || !data_get($_status, 'response.metadata')) {
+            throw new \RuntimeException('Corrupt response during status query for "' . $_id . '".',
+                Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+
+        logger('Ops/status response code: ' . $_status->status_code);
+
+        if (!$_status->success) {
+            throw new \RuntimeException('Unmanaged instance detected.', Response::HTTP_NOT_FOUND);
+        }
+
+        if (data_get($_status, 'response.archived', false) || data_get($_status, 'response.deleted', false)) {
+            throw new \RuntimeException('Instance "' . $_id . '" has been archived and/or deleted.',
+                Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        //  Stuff all the unadulterated data into the config
+        $_paths = (array)data_get($_status, 'response.metadata.paths', []);
+        $_paths['storage-root'] = static::$storageRoot = static::getConfig('storage-root', storage_path());
+
+        static::setConfig([
+            //  Storage root is the top-most directory under which all instance storage lives
+            'storage-root'  => static::$storageRoot,
+            //  The storage map defines where exactly under $storageRoot the instance's storage resides
+            'storage-map'   => (array)data_get($_status, 'response.metadata.storage-map', []),
+            'home-links'    => (array)data_get($_status, 'response.home-links'),
+            'managed-links' => (array)data_get($_status, 'response.managed-links'),
+            'env'           => (array)data_get($_status, 'response.metadata.env', []),
+            'audit'         => (array)data_get($_status, 'response.metadata.audit', []),
+        ]);
+
+        //  Clean up the paths accordingly
+        $_paths['log-path'] = Disk::segment([
+            array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
+            ManagedDefaults::PRIVATE_LOG_PATH_NAME,
+        ], false);
+
+        //  prepend real base directory to all collected paths and cache statically
+        foreach (array_except($_paths, ['storage-root', 'storage-map']) as $_key => $_path) {
+            $_paths[$_key] = Disk::path([static::$storageRoot, $_path], true, 0777, true);
+        }
+
+        //  Now place our paths into the config
+        static::setConfig('paths', (array)$_paths);
+
+        //  Get the database config plucking the first entry if one.
+        static::setConfig('db', (array)head((array)data_get($_status, 'response.metadata.db', [])));
+
+        if (!empty($_limits = (array)data_get($_status, 'response.metadata.limits', []))) {
+            static::setConfig('limits', $_limits);
+        }
+
+        static::freshenCache();
+
+        return true;
     }
 
-    /** Returns cache path qualified by hostname */
-    public static function getCachePath()
+    /**
+     * Validates that the required values are in static::$config
+     *
+     * @return bool
+     */
+    protected static function validateConfiguration()
     {
-        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
+        try {
+            //  Can we build the API url
+            if (!isset(static::$config['console-api-url'], static::$config['console-api-key'])) {
+                logger('Invalid configuration: No "console-api-url" or "console-api-key" in cluster manifest.');
 
-        return static::getCacheRoot() . $hostname;
-    }
+                return false;
+            }
 
-    /** Returns cache key prefix for non disk based caches */
-    public static function getCacheKeyPrefix()
-    {
-        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
+            //  Make it ready for action...
+            static::setConfig('console-api-url', rtrim(static::getConfig('console-api-url'), '/') . '/');
 
-        return 'dreamfactory' . $hostname . ':';
+            //  And default domain
+            $_host = static::getHostName();
+
+            if (!empty($_defaultDomain = ltrim(static::getConfig('default-domain'), '. '))) {
+                $_defaultDomain = '.' . $_defaultDomain;
+
+                //	If this isn't an enterprise instance, bail
+                if (false === strpos($_host, $_defaultDomain)) {
+                    logger('Invalid "default-domain" for host "' . $_host . '"');
+
+                    return false;
+                }
+
+                static::setConfig('default-domain', $_defaultDomain);
+            }
+
+            if (empty($storageRoot = static::getConfig('storage-root'))) {
+                logger('No "storage-root" found.');
+
+                return false;
+            }
+
+            static::setConfig([
+                'storage-root'  => rtrim($storageRoot, ' ' . DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
+                'instance-name' => str_replace($_defaultDomain, null, $_host),
+            ]);
+
+            //  It's all good!
+            return true;
+        } catch (\InvalidArgumentException $_ex) {
+            //  The file is bogus or not there
+            return false;
+        }
     }
 }
