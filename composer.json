@@ -1,6 +1,6 @@
 {
   "name":        "dreamfactory/df-managed",
-  "description": "DreamFactory(tm) Managed Integration Library",
+  "description": "DreamFactory(tm) Managed Service Library",
   "homepage":    "https://www.dreamfactory.com/",
   "keywords":    [
     "dreamfactory",
@@ -42,7 +42,7 @@
   },
   "extra":       {
     "branch-alias": {
-      "dev-develop": "0.0.x-dev"
+      "dev-develop": "1.0.x-dev"
     }
   }
 }

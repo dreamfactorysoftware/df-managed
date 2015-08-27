@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of DreamFactory Enterprise(tm) Managed Integration Library
+ * This file is part of DreamFactory Enterprise(tm) Managed Service Library
  *
  * Copyright 2015-infinity DreamFactory Software, Inc. All Rights Reserved.
  *
