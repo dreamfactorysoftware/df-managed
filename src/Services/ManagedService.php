@@ -1,13 +1,9 @@
 <?php namespace DreamFactory\Managed\Services;
 
-<<<<<<< HEAD
 use DreamFactory\Library\Utility\Disk;
-=======
->>>>>>> parent of 82ffcf7... Cleaned up and added support for DF_STANDALONE env/config
 use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
 use DreamFactory\Managed\Contracts\ProvidesManagedStorage;
 use DreamFactory\Managed\Enums\ManagedDefaults;
-use DreamFactory\Managed\Support\Disk;
 use DreamFactory\Managed\Support\Managed;
 use Illuminate\Contracts\Foundation\Application;
 
@@ -55,9 +51,6 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
             ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME));
     }
 
-<<<<<<< HEAD
-    /** @inheritdoc */
-=======
     /**
      * @return string
      */
@@ -71,7 +64,6 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
      *
      * @return string
      */
->>>>>>> parent of 82ffcf7... Cleaned up and added support for DF_STANDALONE env/config
     public function getStoragePath($append = null)
     {
         return Managed::getStoragePath($append);
@@ -148,5 +140,15 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     public function getDatabaseConfig()
     {
         return Managed::getDatabaseConfig();
+    }
+
+    /**
+     * Returns the instance's private cache path
+     *
+     * @return string
+     */
+    public function getCachePath()
+    {
+        return Managed::getCachePath();
     }
 }
