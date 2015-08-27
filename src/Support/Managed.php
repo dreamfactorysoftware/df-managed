@@ -502,7 +502,8 @@ final class Managed
      */
     protected static function getHostName($hashed = false)
     {
-        $_host = static::getConfig('managed.host-name', app('request')->getHttpHost());
+        $_defaultHost = ((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname());
+        $_host = static::getConfig('managed.host-name', $_defaultHost);
 
         return $hashed ? md5($_host) : $_host;
     }
