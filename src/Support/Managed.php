@@ -525,7 +525,7 @@ final class Managed
      */
     public static function getCachePath()
     {
-        return Disk::path([static::getCacheRoot(), static::getHostName(true)], true);
+        return Disk::path([static::getCacheRoot(), static::getHostName(true)]);
     }
 
     /**
