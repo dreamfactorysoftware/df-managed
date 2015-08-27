@@ -11,16 +11,16 @@ class ManagedDefaults extends FactoryEnum
     //* Constants
     //******************************************************************************
 
+    /** @type string The name of the cluster manifest file */
+    const CLUSTER_MANIFEST_FILE = '.dfe.cluster.json';
     /**
      * @type int The number of minutes to hold managed configurations in cache
      */
     const CONFIG_CACHE_TTL = 5;
     /**
-     * @type
+     * @type string The header used to communicate with DFE console
      */
     const CONSOLE_X_HEADER = 'X-DreamFactory-Console-Key';
-    /** @type string The name of the cluster manifest file */
-    const CLUSTER_MANIFEST_FILE = '.dfe.cluster.json';
     /**
      * @type string The name of the "private" path
      */
@@ -29,6 +29,10 @@ class ManagedDefaults extends FactoryEnum
      * @type string The default signature hash algorithm
      */
     const DEFAULT_SIGNATURE_METHOD = 'sha256';
+    /**
+     * @type string The name of the "storage" path
+     */
+    const DEFAULT_STORAGE_PATH_NAME = 'storage';
     /**
      * @type string
      */
