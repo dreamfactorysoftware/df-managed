@@ -6,6 +6,7 @@ use DreamFactory\Library\Utility\IfSet;
 use DreamFactory\Library\Utility\JsonFile;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -434,13 +435,12 @@ final class Managed
      */
     protected static function loadCachedValues()
     {
-        //@todo does a successful Cache::get extend TTL? Need to find out.
-
         // Need to set the cache path before every cache operation to make sure the cache does not get
         // shared between instances
-        //config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
 
-        $_cache = \Cache::get(static::$cacheKey);
+        /** @noinspection PhpUndefinedMethodInspection */
+        $_cache = Cache::get(static::$cacheKey);
 
         if (!empty($_cache) && is_array($_cache)) {
             static::$config = $_cache;
@@ -457,7 +457,10 @@ final class Managed
      */
     protected static function freshenCache()
     {
-        \Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
+        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
 
         static::$paths = static::getConfig('paths', []);
     }
@@ -511,12 +514,27 @@ final class Managed
      */
     protected static function getCacheKey()
     {
-        if (empty(static::$cacheKey)) {
-            static::$cacheKey = sha1('df.managed.' . static::getHostName());
-            config(['cache.prefix' => static::$cacheKey]);
-        }
+        return static::$cacheKey = static::$cacheKey ?: static::CACHE_KEY_PREFIX . static::getHostName();
+    }
 
-        return static::$cacheKey;
+    /**
+     * Returns cache path qualified by hostname
+     *
+     * @return string
+     */
+    public static function getCachePath()
+    {
+        return Disk::path([static::getCacheRoot(), static::getHostName(true)], true);
+    }
+
+    /**
+     * Returns a key prefixed for use in \Cache
+     *
+     * @return string
+     */
+    public static function getCacheKeyPrefix()
+    {
+        return 'dreamfactory' . static::getHostName(true) . ':';
     }
 
     /**
@@ -575,23 +593,7 @@ final class Managed
     /** Returns cache root */
     public static function getCacheRoot()
     {
-        empty(static::$cacheKey) && static::initialize();
-
-        return Disk::path(static::isManagedInstance()
-            ? [sys_get_temp_dir(), '.df']
-            : config('cache.file.path',
-                storage_path('framework/cache')),
-            true);
-    }
-
-    /**
-     * Returns cache path qualified by hostname
-     *
-     * @return string
-     */
-    public static function getCachePath()
-    {
-        return Disk::path([static::getCacheRoot(), static::getHostName(true)], true);
+        return Disk::path([sys_get_temp_dir(), '.df']);
     }
 
     /**
@@ -616,7 +618,6 @@ final class Managed
                 ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME,
                 ManagedDefaults::SNAPSHOT_PATH_NAME,
             ]),
-            'cache-path'         => storage_path('framework/cache'),
         ];
 
         static::$managed = false;
