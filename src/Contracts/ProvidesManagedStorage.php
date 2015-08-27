@@ -7,20 +7,11 @@ interface ProvidesManagedStorage
     //******************************************************************************
 
     /**
-     * Returns the overall root of an instance owner's storage
+     * Returns the instance's private cache path
      *
      * @return string
      */
-    public function getRootStoragePath();
-
-    /**
-     * Returns the absolute path to an instance's storage
-     *
-     * @param string|null $append If supplied, added to the end of the path
-     *
-     * @return string
-     */
-    public function getStoragePath($append = null);
+    public function getCachePath();
 
     /**
      * Returns the name of the "private-path" directory. Usually this is ".private"
@@ -28,6 +19,13 @@ interface ProvidesManagedStorage
      * @return string
      */
     public function getPrivatePathName();
+
+    /**
+     * @param string|null $append If supplied, added to the end of the path
+     *
+     * @return string
+     */
+    public function getOwnerPrivatePath($append = null);
 
     /**
      * Returns the absolute path to an instance's private path/area
@@ -39,16 +37,19 @@ interface ProvidesManagedStorage
     public function getPrivatePath($append = null);
 
     /**
-     * @param string|null $append If supplied, added to the end of the path
-     *
-     * @return string
-     */
-    public function getOwnerPrivatePath($append = null);
-
-    /**
      * Returns the instance's private path, relative to storage-path
      *
      * @return string
      */
     public function getSnapshotPath();
+
+    /**
+     * Returns the absolute path to an instance's storage
+     *
+     * @param string|null $append If supplied, added to the end of the path
+     *
+     * @return string
+     */
+    public function getStoragePath($append = null);
+
 }

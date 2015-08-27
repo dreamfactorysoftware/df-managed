@@ -1,6 +1,7 @@
 <?php namespace DreamFactory\Managed\Support;
 
 use DreamFactory\Library\Utility\Curl;
+use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Library\Utility\IfSet;
 use DreamFactory\Library\Utility\JsonFile;
 use DreamFactory\Managed\Enums\ManagedDefaults;
@@ -22,6 +23,10 @@ final class Managed
     //******************************************************************************
 
     /**
+     * @type string Cache key in the config
+     */
+    const CACHE_CONFIG_KEY = 'cache.stores.file.path';
+    /**
      * @type string Prepended to the cache keys of this object
      */
     const CACHE_KEY_PREFIX = 'df.managed.config.';
@@ -29,8 +34,6 @@ final class Managed
      * @type int The number of minutes to keep managed instance data cached
      */
     const CACHE_TTL = ManagedDefaults::CONFIG_CACHE_TTL;
-    /** cache path key in the config */
-    const CACHE_CONFIG_KEY = 'cache.stores.file.path';
 
     //******************************************************************************
     //* Members
@@ -53,13 +56,13 @@ final class Managed
      */
     protected static $managed = false;
     /**
-     * @type string The root storage directory
-     */
-    protected static $storageRoot;
-    /**
      * @type array The storage paths
      */
     protected static $paths = [];
+    /**
+     * @type string The root storage directory
+     */
+    protected static $storageRoot;
 
     //*************************************************************************
     //* Methods
@@ -73,34 +76,31 @@ final class Managed
      */
     public static function initialize()
     {
-        static::getCacheKey();
+        static::initializeDefaults();
+
+        //  If this is a stand-alone instance, just bail now.
+        if (!config('df.standalone', true)) {
+            return false;
+        }
 
         if (!static::loadCachedValues()) {
-
             //  Discover where I am
             if (!static::getClusterConfiguration()) {
-                // Set sane unmanaged defaults
-                static::$paths = [
-                    'storage-path'       => storage_path(),
-                    'private-path'       => storage_path() . '/.private',
-                    'owner-private-path' => storage_path() . '/.owner',
-                ];
-                logger('Unmanaged instance, ignoring.');
-
+                //  Unmanaged instance, ignoring
                 return false;
             }
 
-            //  Discover our secret powers...
             try {
+                //  Discover our secret powers...
                 static::interrogateCluster();
-            } catch (\RuntimeException $e) {
-                logger('Cluster unreachable or in disarray. ' . $e->getMessage());
+            } catch (\RuntimeException $_ex) {
+                logger('Error interrogating console: ' . $_ex->getMessage());
 
                 return false;
             }
         }
 
-        logger('Managed instance bootstrap complete.');
+        //logger('Managed instance bootstrap complete.');
 
         return static::$managed = true;
     }
@@ -122,7 +122,7 @@ final class Managed
         try {
             static::$config = JsonFile::decodeFile($configFile);
 
-            logger('Cluster config read from ' . $configFile);
+            //logger('Cluster config read from ' . $configFile);
 
             //  Cluster validation determines if an instance is managed or not
             if (!static::validateConfiguration()) {
@@ -131,7 +131,7 @@ final class Managed
         } catch (\Exception $_ex) {
             static::$config = [];
 
-            logger('Cluster configuration file is not in a recognizable format.');
+            //logger('Cluster configuration file is not in a recognizable format.');
 
             throw new \RuntimeException('This instance is not configured properly for your system environment.');
         }
@@ -157,7 +157,7 @@ final class Managed
                 Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
-        logger('Ops/status response code: ' . $_status->status_code);
+        //logger('Ops/status response code: ' . $_status->status_code);
 
         if (!$_status->success) {
             throw new \RuntimeException('Unmanaged instance detected.', Response::HTTP_NOT_FOUND);
@@ -184,12 +184,11 @@ final class Managed
         ]);
 
         //  Clean up the paths accordingly
-        $_paths['log-path'] =
-            Disk::segment([
-                array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
-                ManagedDefaults::PRIVATE_LOG_PATH_NAME,
-            ],
-                false);
+        $_paths['log-path'] = Disk::segment([
+            array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
+            ManagedDefaults::PRIVATE_LOG_PATH_NAME,
+        ],
+            false);
 
         //  prepend real base directory to all collected paths and cache statically
         foreach (array_except($_paths, ['storage-root', 'storage-map']) as $_key => $_path) {
@@ -327,6 +326,8 @@ final class Managed
      */
     public static function isManagedInstance()
     {
+        empty(static::$cacheKey) && static::initialize();
+
         return static::$managed;
     }
 
@@ -345,7 +346,7 @@ final class Managed
      */
     public static function getStoragePath($append = null)
     {
-        return Disk::segment([array_get(static::$paths, 'storage-path'), $append]);
+        return Disk::path([array_get(static::$paths, 'storage-path'), $append], true, 2775);
     }
 
     /**
@@ -355,7 +356,7 @@ final class Managed
      */
     public static function getPrivatePath($append = null)
     {
-        return Disk::segment([array_get(static::$paths, 'private-path'), $append]);
+        return Disk::path([array_get(static::$paths, 'private-path'), $append], true, 2775);
     }
 
     /**
@@ -363,7 +364,7 @@ final class Managed
      */
     public static function getLogPath()
     {
-        return Disk::path([static::getPrivatePath(), ManagedDefaults::PRIVATE_LOG_PATH_NAME], true, 2775);
+        return Disk::path([array_get(static::$paths, 'log-path')], true, 2775);
     }
 
     /**
@@ -383,7 +384,7 @@ final class Managed
      */
     public static function getOwnerPrivatePath($append = null)
     {
-        return Disk::segment([array_get(static::$paths, 'owner-private-path'), $append]);
+        return Disk::path([array_get(static::$paths, 'owner-private-path'), $append], true, 2775);
     }
 
     /**
@@ -498,11 +499,15 @@ final class Managed
     /**
      * Gets my host name
      *
+     * @param bool $hashed If true, an md5 hash of the host name will be returned
+     *
      * @return string
      */
-    protected static function getHostName()
+    protected static function getHostName($hashed = false)
     {
-        return static::getConfig('managed.host-name', app('request')->server->get('HTTP_HOST', gethostname()));
+        $_host = static::getConfig('managed.host-name', app('request')->getHttpHost());
+
+        return $hashed ? md5($_host) : $_host;
     }
 
     /**
@@ -512,7 +517,8 @@ final class Managed
      */
     protected static function getCacheKey()
     {
-        return static::$cacheKey = static::$cacheKey ?: static::CACHE_KEY_PREFIX . static::getHostName();
+        return static::$cacheKey =
+            static::$cacheKey ?: Disk::segment([static::CACHE_KEY_PREFIX, static::getHostName()], false, '.');
     }
 
     /**
@@ -522,8 +528,10 @@ final class Managed
      */
     public static function getDatabaseConfig()
     {
-        return static::isManagedInstance() ? static::getConfig('db')
-            : config('database.connections.' . config('database.default'), []);
+        return static::isManagedInstance()
+            ? static::getConfig('db')
+            : config('database.connections.' . config('database.default'),
+                []);
     }
 
     /**
@@ -563,32 +571,63 @@ final class Managed
      */
     public static function getStorageRoot()
     {
-        if (!static::$config) {
-            static::initialize();
-        }
-
         return static::$storageRoot;
     }
 
     /** Returns cache root */
     public static function getCacheRoot()
     {
-        return rtrim(sys_get_temp_dir(), '/') . "/.df/";
+        empty(static::$cacheKey) && static::initialize();
+
+        return Disk::path(static::isManagedInstance() ? [sys_get_temp_dir(), '.df'] : static::getPrivatePath('.cache'),
+            true,
+            2775);
     }
 
-    /** Returns cache path qualified by hostname */
+    /**
+     * Returns cache path qualified by hostname
+     *
+     * @return string
+     */
     public static function getCachePath()
     {
-        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
-
-        return static::getCacheRoot() . $hostname;
+        return Disk::path([static::getCacheRoot(), md5(static::getHostName())], true, 2775);
     }
 
     /** Returns cache key prefix for non disk based caches */
     public static function getCacheKeyPrefix()
     {
-        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
+        return 'dreamfactory:' . md5(static::getHostName()) . ':';
+    }
 
-        return 'dreamfactory' . $hostname . ':';
+    /**
+     * Initialize defaults for a stand-alone instance and sets the cache key
+     *
+     * @param string|null $storagePath A storage path to use instead of storage_path()
+     */
+    protected static function initializeDefaults($storagePath = null)
+    {
+        $_storagePath = Disk::path([$storagePath ?: storage_path()]);
+
+        static::$paths = [
+            'storage-root'       => $_storagePath,
+            'storage-path'       => $_storagePath,
+            'private-path'       => Disk::path([$_storagePath, ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME]),
+            'owner-private-path' => Disk::path([$_storagePath, ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME]),
+            'log-path'           => Disk::path([$_storagePath, ManagedDefaults::PRIVATE_LOG_PATH_NAME]),
+            'snapshot-path'      => Disk::path([
+                $_storagePath,
+                ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME,
+                ManagedDefaults::SNAPSHOT_PATH_NAME,
+            ]),
+            'cache-path'         => Disk::path([
+                $_storagePath,
+                ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME,
+                ManagedDefaults::PRIVATE_CACHE_PATH_NAME,
+            ]),
+        ];
+
+        static::getCacheKey();
+        static::$managed = false;
     }
 }
