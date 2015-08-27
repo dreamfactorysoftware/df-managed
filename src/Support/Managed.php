@@ -79,7 +79,7 @@ final class Managed
         static::initializeDefaults();
 
         //  If this is a stand-alone instance, just bail now.
-        if (!config('df.standalone', true)) {
+        if (config('df.standalone', true)) {
             return false;
         }
 
