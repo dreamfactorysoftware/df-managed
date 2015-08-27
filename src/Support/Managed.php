@@ -1,7 +1,6 @@
 <?php namespace DreamFactory\Managed\Support;
 
 use DreamFactory\Library\Utility\Curl;
-use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Library\Utility\IfSet;
 use DreamFactory\Library\Utility\JsonFile;
 use DreamFactory\Managed\Enums\ManagedDefaults;
@@ -23,17 +22,15 @@ final class Managed
     //******************************************************************************
 
     /**
-     * @type string Cache path key in the config
-     */
-    const CACHE_CONFIG_KEY = 'cache.stores.file.path';
-    /**
      * @type string Prepended to the cache keys of this object
      */
     const CACHE_KEY_PREFIX = 'df.managed.config.';
     /**
-     * @type int The number of *minutes* to keep managed instance data cached
+     * @type int The number of minutes to keep managed instance data cached
      */
     const CACHE_TTL = ManagedDefaults::CONFIG_CACHE_TTL;
+    /** cache path key in the config */
+    const CACHE_CONFIG_KEY = 'cache.stores.file.path';
 
     //******************************************************************************
     //* Members
@@ -54,15 +51,15 @@ final class Managed
     /**
      * @type bool
      */
-    protected static $managed;
-    /**
-     * @type array The storage paths
-     */
-    protected static $paths = [];
+    protected static $managed = false;
     /**
      * @type string The root storage directory
      */
     protected static $storageRoot;
+    /**
+     * @type array The storage paths
+     */
+    protected static $paths = [];
 
     //*************************************************************************
     //* Methods
@@ -76,324 +73,36 @@ final class Managed
      */
     public static function initialize()
     {
-        static::initializeDefaults();
+        static::getCacheKey();
 
-        if (config('df.standalone', true)) {
-            return false;
-        }
-
-        //  Discover where I am
         if (!static::loadCachedValues()) {
+
+            //  Discover where I am
             if (!static::getClusterConfiguration()) {
-                //  Unmanaged, ignored...
+                // Set sane unmanaged defaults
+                static::$paths = [
+                    'storage-path'       => storage_path(),
+                    'private-path'       => storage_path() . '/.private',
+                    'owner-private-path' => storage_path() . '/.owner',
+                ];
+                logger('Unmanaged instance, ignoring.');
+
                 return false;
             }
 
+            //  Discover our secret powers...
             try {
-                //  Discover our secret powers...
                 static::interrogateCluster();
             } catch (\RuntimeException $e) {
-                logger('Communication error with DFE console: ' . $e->getMessage());
+                logger('Cluster unreachable or in disarray. ' . $e->getMessage());
 
                 return false;
             }
         }
 
-        //logger('Managed instance bootstrap complete.');
+        logger('Managed instance bootstrap complete.');
 
         return static::$managed = true;
-    }
-
-    /**
-     * @return boolean
-     */
-    public static function isManagedInstance()
-    {
-        empty(static::$cacheKey) && static::initialize();
-
-        return static::$managed;
-    }
-
-    /**
-     * @return string
-     */
-    public static function getInstanceName()
-    {
-        return static::getConfig('instance-name');
-    }
-
-    /**
-     * @param string|null $append Optional path to append
-     *
-     * @return string
-     */
-    public static function getStoragePath($append = null)
-    {
-        return static::getConfigPath('storage-path', $append);
-    }
-
-    /**
-     * @param string|null $append Optional path to append
-     *
-     * @return string
-     */
-    public static function getPrivatePath($append = null)
-    {
-        return static::getConfigPath('private-path', $append);
-    }
-
-    /**
-     * @param string|null $append Optional path to append
-     *
-     * @return string
-     */
-    public static function getOwnerPrivatePath($append = null)
-    {
-        return static::getConfigPath('owner-private-path', $append);
-    }
-
-    /**
-     * @return string Absolute /path/to/logs
-     */
-    public static function getLogPath()
-    {
-        return static::getConfigPath('log-path');
-    }
-
-    /**
-     * @param string|null $name
-     *
-     * @return string The absolute /path/to/log/file
-     */
-    public static function getLogFile($name = null)
-    {
-        return Disk::path([static::getLogPath(), ($name ?: static::getInstanceName() . '.log')]);
-    }
-
-    /**
-     * Returns the storage root path
-     *
-     * @return string
-     */
-    public static function getStorageRoot()
-    {
-        empty(static::$cacheKey) && static::initialize();
-
-        return static::$storageRoot;
-    }
-
-    /** Returns cache root */
-    public static function getCacheRoot()
-    {
-        return rtrim(sys_get_temp_dir(), '/') . "/.df/";
-    }
-
-    /** Returns cache path qualified by hostname */
-    public static function getCachePath()
-    {
-        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
-
-        return static::getCacheRoot() . $hostname;
-    }
-
-    /**
-     * Return a database configuration as specified by the console if managed, or config() otherwise.
-     *
-     * @return array
-     */
-    public static function getDatabaseConfig()
-    {
-        return static::isManagedInstance()
-            ? static::getConfig('db')
-            : config('database.connections.' . config('database.default'),
-                []);
-    }
-
-    /**
-     * Return the limits for this instance or an empty array if none.
-     *
-     * @param string|null $limitKey A key within the limits to retrieve. If omitted, all limits are returned
-     * @param array       $default  The default value to return if $limitKey was not found
-     *
-     * @return array|mixed
-     */
-    public static function getLimits($limitKey = null, $default = [])
-    {
-        return null === $limitKey
-            ? static::getConfig('limits', [])
-            : array_get(static::getConfig('limits', []),
-                $limitKey,
-                $default);
-    }
-
-    /**
-     * Return the Console API Key hash or null
-     *
-     * @return string|null
-     */
-    public static function getConsoleKey()
-    {
-        return static::isManagedInstance() ? hash(ManagedDefaults::DEFAULT_SIGNATURE_METHOD,
-            IfSet::getDeep(static::$config, 'env', 'cluster-id') . IfSet::getDeep(static::$config,
-                'env',
-                'instance-id')) : null;
-    }
-
-    /** Returns cache key prefix for non disk based caches */
-    public static function getCacheKeyPrefix()
-    {
-        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
-
-        return 'dreamfactory' . $hostname . ':';
-    }
-
-    /**
-     * Retrieve a config value or the entire array
-     *
-     * @param string $key
-     * @param mixed  $default
-     *
-     * @return array|mixed
-     */
-    public static function getConfig($key = null, $default = null)
-    {
-        if (null === $key) {
-            return static::$config;
-        }
-
-        $_value = array_get(static::$config, $key, $default);
-
-        //  Add value to array if defaulted
-        $_value === $default && static::setConfig($key, $_value);
-
-        return $_value;
-    }
-
-    /**
-     * Retrieve a config value or the entire array
-     *
-     * @param string|array $key A single key to set or an array of KV pairs to set at once
-     * @param mixed        $value
-     *
-     * @return array|mixed
-     */
-    protected static function setConfig($key, $value = null)
-    {
-        if (is_array($key)) {
-            foreach ($key as $_key => $_value) {
-                array_set(static::$config, $_key, $_value);
-            }
-
-            return static::$config;
-        }
-
-        return array_set(static::$config, $key, $value);
-    }
-
-    /**
-     * Reload the cache
-     */
-    protected static function loadCachedValues()
-    {
-        //@todo does a successful Cache::get extend TTL? Need to find out.
-
-        // Need to set the cache path before every cache operation to make sure the cache does not get
-        // shared between instances
-        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        $_cache = Cache::get(static::$cacheKey);
-
-        if (!empty($_cache) && is_array($_cache)) {
-            static::$config = $_cache;
-            static::$paths = static::getConfig('paths');
-
-            return static::validateConfiguration();
-        }
-
-        return false;
-    }
-
-    /**
-     * Refreshes the cache with fresh values
-     */
-    protected static function freshenCache()
-    {
-        // Need to set the cache path before every cache operation to make sure the cache does not get
-        // shared between instances
-        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
-
-        static::$cacheKey && \Cache::put(static::$cacheKey, static::$config, static::CACHE_TTL);
-        static::$paths = static::getConfig('paths', []);
-    }
-
-    /**
-     * Locate the configuration file for DFE, if any
-     *
-     * @param string $file
-     *
-     * @return bool|string
-     */
-    protected static function locateClusterEnvironmentFile($file)
-    {
-        $_path = isset($_SERVER, $_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : getcwd();
-
-        while (true) {
-            if (file_exists($_path . DIRECTORY_SEPARATOR . $file)) {
-                return $_path . DIRECTORY_SEPARATOR . $file;
-            }
-
-            $_parentPath = dirname($_path);
-
-            if ($_parentPath == $_path || empty($_parentPath) || $_parentPath == DIRECTORY_SEPARATOR) {
-                return false;
-            }
-
-            $_path = $_parentPath;
-        }
-
-        return false;
-    }
-
-    /**
-     * Gets my host name
-     *
-     * @return string
-     */
-    protected static function getHostName()
-    {
-        return static::getConfig('managed.host-name', app('request')->getHttpHost());
-    }
-
-    /**
-     * Returns a key prefixed for use in \Cache
-     *
-     * @return string
-     */
-    protected static function getCacheKey()
-    {
-        return static::$cacheKey ?: static::$cacheKey = static::CACHE_KEY_PREFIX . static::getHostName();
-    }
-
-    /**
-     * Initialize defaults for this service
-     */
-    protected static function initializeDefaults()
-    {
-        static::$managed = false;
-        static::$config = [];
-        static::$storageRoot = Disk::path([base_path(), ManagedDefaults::DEFAULT_STORAGE_PATH_NAME]);
-
-        static::$paths = [
-            'storage-path'       => storage_path(),
-            'private-path'       => storage_path() . '/.private',
-            'owner-private-path' => storage_path() . '/.private',
-            'log-path'           => storage_path() . '/logs',
-            'snapshot-path'      => storage_path() . '/.private/snapshots',
-            'cache-path'         => storage_path() . '/.private/.cache',
-        ];
-
-        static::getCacheKey();
     }
 
     /**
@@ -413,7 +122,7 @@ final class Managed
         try {
             static::$config = JsonFile::decodeFile($configFile);
 
-            //logger('Cluster config read from ' . $configFile);
+            logger('Cluster config read from ' . $configFile);
 
             //  Cluster validation determines if an instance is managed or not
             if (!static::validateConfiguration()) {
@@ -448,7 +157,7 @@ final class Managed
                 Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
-        //logger('Ops/status response code: ' . $_status->status_code);
+        logger('Ops/status response code: ' . $_status->status_code);
 
         if (!$_status->success) {
             throw new \RuntimeException('Unmanaged instance detected.', Response::HTTP_NOT_FOUND);
@@ -475,7 +184,12 @@ final class Managed
         ]);
 
         //  Clean up the paths accordingly
-        $_paths['log-path'] = static::getLogPath();
+        $_paths['log-path'] =
+            Disk::segment([
+                array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
+                ManagedDefaults::PRIVATE_LOG_PATH_NAME,
+            ],
+                false);
 
         //  prepend real base directory to all collected paths and cache statically
         foreach (array_except($_paths, ['storage-root', 'storage-map']) as $_key => $_path) {
@@ -609,16 +323,272 @@ final class Managed
     }
 
     /**
-     * @param string      $key
-     * @param string|null $append
-     * @param bool        $create
-     * @param int         $mode
-     * @param bool        $recursive
+     * @return boolean
+     */
+    public static function isManagedInstance()
+    {
+        return static::$managed;
+    }
+
+    /**
+     * @return string
+     */
+    public static function getInstanceName()
+    {
+        return static::getConfig('instance-name');
+    }
+
+    /**
+     * @param string|null $append Optional path to append
      *
      * @return string
      */
-    protected static function getConfigPath($key, $append = null, $create = false, $mode = 2775, $recursive = true)
+    public static function getStoragePath($append = null)
     {
-        return Disk::path([array_get(static::$paths, $key), $append], $create, $mode, $recursive);
+        return Disk::segment([array_get(static::$paths, 'storage-path'), $append]);
+    }
+
+    /**
+     * @param string|null $append Optional path to append
+     *
+     * @return string
+     */
+    public static function getPrivatePath($append = null)
+    {
+        return Disk::segment([array_get(static::$paths, 'private-path'), $append]);
+    }
+
+    /**
+     * @return string Absolute /path/to/logs
+     */
+    public static function getLogPath()
+    {
+        return Disk::path([static::getPrivatePath(), ManagedDefaults::PRIVATE_LOG_PATH_NAME], true, 2775);
+    }
+
+    /**
+     * @param string|null $name
+     *
+     * @return string The absolute /path/to/log/file
+     */
+    public static function getLogFile($name = null)
+    {
+        return Disk::path([static::getLogPath(), ($name ?: static::getInstanceName() . '.log')]);
+    }
+
+    /**
+     * @param string|null $append Optional path to append
+     *
+     * @return string
+     */
+    public static function getOwnerPrivatePath($append = null)
+    {
+        return Disk::segment([array_get(static::$paths, 'owner-private-path'), $append]);
+    }
+
+    /**
+     * Retrieve a config value or the entire array
+     *
+     * @param string $key
+     * @param mixed  $default
+     *
+     * @return array|mixed
+     */
+    public static function getConfig($key = null, $default = null)
+    {
+        if (null === $key) {
+            return static::$config;
+        }
+
+        $_value = array_get(static::$config, $key, $default);
+
+        //  Add value to array if defaulted
+        $_value === $default && static::setConfig($key, $_value);
+
+        return $_value;
+    }
+
+    /**
+     * Retrieve a config value or the entire array
+     *
+     * @param string|array $key A single key to set or an array of KV pairs to set at once
+     * @param mixed        $value
+     *
+     * @return array|mixed
+     */
+    protected static function setConfig($key, $value = null)
+    {
+        if (is_array($key)) {
+            foreach ($key as $_key => $_value) {
+                array_set(static::$config, $_key, $_value);
+            }
+
+            return static::$config;
+        }
+
+        return array_set(static::$config, $key, $value);
+    }
+
+    /**
+     * Reload the cache
+     */
+    protected static function loadCachedValues()
+    {
+        //@todo does a successful Cache::get extend TTL? Need to find out.
+
+        // Need to set the cache path before every cache operation to make sure the cache does not get
+        // shared between instances
+        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        $_cache = Cache::get(static::$cacheKey);
+
+        if (!empty($_cache) && is_array($_cache)) {
+            static::$config = $_cache;
+            static::$paths = static::getConfig('paths');
+
+            return static::validateConfiguration();
+        }
+
+        return false;
+    }
+
+    /**
+     * Refreshes the cache with fresh values
+     */
+    protected static function freshenCache()
+    {
+        // Need to set the cache path before every cache operation to make sure the cache does not get
+        // shared between instances
+        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
+        static::$paths = static::getConfig('paths', []);
+    }
+
+    /**
+     * Locate the configuration file for DFE, if any
+     *
+     * @param string $file
+     *
+     * @return bool|string
+     */
+    protected static function locateClusterEnvironmentFile($file)
+    {
+        $_path = isset($_SERVER, $_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : getcwd();
+
+        while (true) {
+            if (file_exists($_path . DIRECTORY_SEPARATOR . $file)) {
+                return $_path . DIRECTORY_SEPARATOR . $file;
+            }
+
+            $_parentPath = dirname($_path);
+
+            if ($_parentPath == $_path || empty($_parentPath) || $_parentPath == DIRECTORY_SEPARATOR) {
+                return false;
+            }
+
+            $_path = $_parentPath;
+        }
+
+        return false;
+    }
+
+    /**
+     * Gets my host name
+     *
+     * @return string
+     */
+    protected static function getHostName()
+    {
+        return static::getConfig('managed.host-name', app('request')->server->get('HTTP_HOST', gethostname()));
+    }
+
+    /**
+     * Returns a key prefixed for use in \Cache
+     *
+     * @return string
+     */
+    protected static function getCacheKey()
+    {
+        return static::$cacheKey = static::$cacheKey ?: static::CACHE_KEY_PREFIX . static::getHostName();
+    }
+
+    /**
+     * Return a database configuration as specified by the console if managed, or config() otherwise.
+     *
+     * @return array
+     */
+    public static function getDatabaseConfig()
+    {
+        return static::isManagedInstance() ? static::getConfig('db')
+            : config('database.connections.' . config('database.default'), []);
+    }
+
+    /**
+     * Return the limits for this instance or an empty array if none.
+     *
+     * @param string|null $limitKey A key within the limits to retrieve. If omitted, all limits are returned
+     * @param array       $default  The default value to return if $limitKey was not found
+     *
+     * @return array|mixed
+     */
+    public static function getLimits($limitKey = null, $default = [])
+    {
+        return null === $limitKey
+            ? static::getConfig('limits', [])
+            : array_get(static::getConfig('limits', []),
+                $limitKey,
+                $default);
+    }
+
+    /**
+     * Return the Console API Key hash or null
+     *
+     * @return string|null
+     */
+    public static function getConsoleKey()
+    {
+        return static::isManagedInstance() ? hash(ManagedDefaults::DEFAULT_SIGNATURE_METHOD,
+            IfSet::getDeep(static::$config, 'env', 'cluster-id') . IfSet::getDeep(static::$config,
+                'env',
+                'instance-id')) : null;
+    }
+
+    /**
+     * Returns the storage root path
+     *
+     * @return string
+     */
+    public static function getStorageRoot()
+    {
+        if (!static::$config) {
+            static::initialize();
+        }
+
+        return static::$storageRoot;
+    }
+
+    /** Returns cache root */
+    public static function getCacheRoot()
+    {
+        return rtrim(sys_get_temp_dir(), '/') . "/.df/";
+    }
+
+    /** Returns cache path qualified by hostname */
+    public static function getCachePath()
+    {
+        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
+
+        return static::getCacheRoot() . $hostname;
+    }
+
+    /** Returns cache key prefix for non disk based caches */
+    public static function getCacheKeyPrefix()
+    {
+        $hostname = md5(((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
+
+        return 'dreamfactory' . $hostname . ':';
     }
 }
