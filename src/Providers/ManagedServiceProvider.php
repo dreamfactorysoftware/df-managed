@@ -2,7 +2,6 @@
 
 use DreamFactory\Managed\Services\ManagedService;
 use DreamFactory\Managed\Support\Managed;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -18,7 +17,6 @@ class ManagedServiceProvider extends ServiceProvider
      * @type string The key in database config that holds all connections.
      */
     const DATABASE_ALL_CONNECTIONS_KEY = 'database.connections';
-
     /**
      * @type string The key in database config that specifies default connection.
      */
@@ -29,7 +27,7 @@ class ManagedServiceProvider extends ServiceProvider
     const IOC_NAME = 'managed.config';
 
     //********************************************************************************
-    //* Public Methods
+    //* Methods
     //********************************************************************************
 
     /**

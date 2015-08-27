@@ -1,17 +1,17 @@
 {
-  "name":              "dreamfactory/df-managed",
-  "description":       "DreamFactory(tm) Managed Integration Library",
-  "homepage":          "https://www.dreamfactory.com/",
-  "keywords":          [
+  "name":        "dreamfactory/df-managed",
+  "description": "DreamFactory(tm) Managed Service Library",
+  "homepage":    "https://www.dreamfactory.com/",
+  "keywords":    [
     "dreamfactory",
     "dsp",
     "enterprise",
     "storage"
   ],
-  "license":           [
+  "license":     [
     "Apache-2.0"
   ],
-  "authors":           [
+  "authors":     [
     {
       "name":  "Jerry Ablan",
       "email": "jerryablan@dreamfactory.com"
@@ -19,29 +19,30 @@
     {
       "name":  "David L. Weiner",
       "email": "davidweiner@dreamfactory.com"
-    },{
+    },
+    {
       "name":  "Arif Islam",
       "email": "arifislam@dreamfactory.com"
     }
   ],
-  "require":           {
-    "dreamfactory/php-utils": "1.*"
+  "require":     {
+    "dreamfactory/php-utils": "1.1.*"
   },
-  "require-dev":       {
+  "require-dev": {
     "phpunit/phpunit": "@stable",
     "laravel/laravel": "5.1.*"
   },
-  "autoload":          {
+  "autoload":    {
     "psr-4": {
       "DreamFactory\\Managed\\": "src/"
     }
   },
-  "config":            {
+  "config":      {
     "preferred-install": "dist"
   },
-  "extra":             {
+  "extra":       {
     "branch-alias": {
-      "dev-develop": "0.0.x-dev"
+      "dev-develop": "0.1.x-dev"
     }
   }
 }
