@@ -517,8 +517,12 @@ final class Managed
      */
     protected static function getCacheKey()
     {
-        return static::$cacheKey =
-            static::$cacheKey ?: Disk::segment([static::CACHE_KEY_PREFIX, static::getHostName()], false, '.');
+        if (empty(static::$cacheKey)) {
+            static::$cacheKey = Disk::segment([static::CACHE_KEY_PREFIX, static::getHostName()], false, '.');
+            config(['cache.prefix' => static::$cacheKey]);
+        }
+
+        return static::$cacheKey;
     }
 
     /**
@@ -606,6 +610,8 @@ final class Managed
      */
     protected static function initializeDefaults($storagePath = null)
     {
+        static::getCacheKey();
+
         $_storagePath = Disk::path([$storagePath ?: storage_path()]);
 
         static::$paths = [
@@ -626,7 +632,6 @@ final class Managed
             ]),
         ];
 
-        static::getCacheKey();
         static::$managed = false;
     }
 }
