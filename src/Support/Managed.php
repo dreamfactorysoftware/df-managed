@@ -346,7 +346,7 @@ final class Managed
      */
     public static function getStoragePath($append = null)
     {
-        return Disk::path([array_get(static::$paths, 'storage-path'), $append], true, 2775);
+        return Disk::path([array_get(static::$paths, 'storage-path'), $append], true);
     }
 
     /**
@@ -356,7 +356,7 @@ final class Managed
      */
     public static function getPrivatePath($append = null)
     {
-        return Disk::path([array_get(static::$paths, 'private-path'), $append], true, 2775);
+        return Disk::path([array_get(static::$paths, 'private-path'), $append], true);
     }
 
     /**
@@ -364,7 +364,7 @@ final class Managed
      */
     public static function getLogPath()
     {
-        return Disk::path([array_get(static::$paths, 'log-path')], true, 2775);
+        return Disk::path([array_get(static::$paths, 'log-path')], true);
     }
 
     /**
@@ -384,7 +384,7 @@ final class Managed
      */
     public static function getOwnerPrivatePath($append = null)
     {
-        return Disk::path([array_get(static::$paths, 'owner-private-path'), $append], true, 2775);
+        return Disk::path([array_get(static::$paths, 'owner-private-path'), $append], true);
     }
 
     /**
@@ -580,8 +580,7 @@ final class Managed
         empty(static::$cacheKey) && static::initialize();
 
         return Disk::path(static::isManagedInstance() ? [sys_get_temp_dir(), '.df'] : static::getPrivatePath('.cache'),
-            true,
-            2775);
+            true);
     }
 
     /**
@@ -591,7 +590,7 @@ final class Managed
      */
     public static function getCachePath()
     {
-        return Disk::path([static::getCacheRoot(), md5(static::getHostName())], true, 2775);
+        return Disk::path([static::getCacheRoot(), md5(static::getHostName())], true);
     }
 
     /** Returns cache key prefix for non disk based caches */
