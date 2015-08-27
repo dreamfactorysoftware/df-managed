@@ -11,26 +11,17 @@ class ManagedDefaults extends FactoryEnum
     //* Constants
     //******************************************************************************
 
-<<<<<<< HEAD
-    /**
-     * @type string The name of the cluster manifest file
-     */
-    const CLUSTER_MANIFEST_FILE = '.dfe.cluster.json';
-=======
->>>>>>> parent of 82ffcf7... Cleaned up and added support for DF_STANDALONE env/config
     /**
      * @type int The number of minutes to hold managed configurations in cache
      */
     const CONFIG_CACHE_TTL = 5;
     /**
-<<<<<<< HEAD
-     * @type string The header used to communicate with the console
-=======
-     * @type
->>>>>>> parent of 82ffcf7... Cleaned up and added support for DF_STANDALONE env/config
+     * @type string
      */
     const CONSOLE_X_HEADER = 'X-DreamFactory-Console-Key';
-    /** @type string The name of the cluster manifest file */
+    /**
+     * @type string The name of the cluster manifest file
+     */
     const CLUSTER_MANIFEST_FILE = '.dfe.cluster.json';
     /**
      * @type string The name of the "private" path
@@ -53,7 +44,7 @@ class ManagedDefaults extends FactoryEnum
      */
     const MANAGED_INSTANCE_MARKER = '/var/www/.dfe-managed';
     /**
-     * @type string The default path where cached things go under $privatePath
+     * @type string The cache path name
      */
     const PRIVATE_CACHE_PATH_NAME = '.cache';
     /**
