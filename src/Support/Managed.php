@@ -6,7 +6,6 @@ use DreamFactory\Library\Utility\IfSet;
 use DreamFactory\Library\Utility\JsonFile;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -439,10 +438,11 @@ final class Managed
 
         // Need to set the cache path before every cache operation to make sure the cache does not get
         // shared between instances
-        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+        //config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
 
         /** @noinspection PhpUndefinedMethodInspection */
-        $_cache = Cache::get(static::$cacheKey);
+        $_cache = \Session::get(static::$cacheKey);
+//        $_cache = Cache::get(static::$cacheKey);
 
         if (!empty($_cache) && is_array($_cache)) {
             static::$config = $_cache;
@@ -461,10 +461,11 @@ final class Managed
     {
         // Need to set the cache path before every cache operation to make sure the cache does not get
         // shared between instances
-        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+        //config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
 
+        \Session::put(static::getCacheKey(), static::$config);
         /** @noinspection PhpUndefinedMethodInspection */
-        Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
+        //Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
         static::$paths = static::getConfig('paths', []);
     }
 
@@ -586,7 +587,7 @@ final class Managed
         return Disk::path(static::isManagedInstance()
             ? [sys_get_temp_dir(), '.df']
             : config('cache.file.path',
-                base_path('/bootstrap/cache')),
+                storage_path('framework/cache')),
             true);
     }
 
@@ -628,7 +629,7 @@ final class Managed
                 ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME,
                 ManagedDefaults::SNAPSHOT_PATH_NAME,
             ]),
-            'cache-path'         => Disk::path([base_path(), 'bootstrap', 'cache']),
+            'cache-path'         => storage_path('framework/cache'),
         ];
 
         static::$managed = false;
