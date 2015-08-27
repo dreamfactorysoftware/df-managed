@@ -2,6 +2,7 @@
 
 use DreamFactory\Managed\Services\ManagedService;
 use DreamFactory\Managed\Support\Managed;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -36,7 +37,12 @@ class ManagedServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+<<<<<<< HEAD
         //  Get our source db config
+=======
+        //  Kick off the management interrogation
+        Managed::initialize();
+>>>>>>> parent of 82ffcf7... Cleaned up and added support for DF_STANDALONE env/config
         $_dbConfig = Managed::getDatabaseConfig();
 
         /*************************************************************************************************************
@@ -48,6 +54,7 @@ class ManagedServiceProvider extends ServiceProvider
          * array and set the database.default to this new connection.
          */
 
+<<<<<<< HEAD
         //  Create a new connection with a key using the md5 hash of the database name.
         $_key = md5($_dbConfig['database']);
         $_configs = config(static::DATABASE_ALL_CONNECTIONS_KEY);
@@ -56,14 +63,39 @@ class ManagedServiceProvider extends ServiceProvider
 
         //  Set the default connection to our new hashed key
         config([static::DATABASE_DEFAULT_CONNECTION_KEY => $_key]);
+=======
+        //Creating new connection key using the md5 hash of the connection's database name.
+        $connectionKey = md5($_dbConfig['database']);
+
+        //Grabbing all available connections that's in database.connections config.
+        $allConnections = config(static::DATABASE_ALL_CONNECTIONS_KEY);
+
+        //Inserting the new connection config we got from enterprise console into list of all available connections.
+        $allConnections[$connectionKey] = $_dbConfig;
+
+        //Updating the database.connections config array.
+        config([static::DATABASE_ALL_CONNECTIONS_KEY => $allConnections]);
+
+        //Setting the default connection to use the newly inserted connection from enterprise console.
+        config([static::DATABASE_DEFAULT_CONNECTION_KEY => $connectionKey]);
+>>>>>>> parent of 82ffcf7... Cleaned up and added support for DF_STANDALONE env/config
 
         /**
          *************************************************************************************************************/
 
+<<<<<<< HEAD
 //        logger('DB Config from Managed Service: Host = ' .
 //            $_dbConfig['host'] .
 //            ' DataBase = ' .
 //            $_dbConfig['database']);
+=======
+        if (env('APP_DEBUG', false)) {
+            logger('DB Config from Managed Service: Host = ' .
+                $_dbConfig['host'] .
+                ' DataBase = ' .
+                $_dbConfig['database']);
+        }
+>>>>>>> parent of 82ffcf7... Cleaned up and added support for DF_STANDALONE env/config
     }
 
     /**
