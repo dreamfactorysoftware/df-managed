@@ -583,7 +583,10 @@ final class Managed
     {
         empty(static::$cacheKey) && static::initialize();
 
-        return Disk::path(static::isManagedInstance() ? [sys_get_temp_dir(), '.df'] : static::getPrivatePath('.cache'),
+        return Disk::path(static::isManagedInstance()
+            ? [sys_get_temp_dir(), '.df']
+            : config('cache.file.path',
+                base_path('/bootstrap/cache')),
             true);
     }
 
@@ -625,11 +628,7 @@ final class Managed
                 ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME,
                 ManagedDefaults::SNAPSHOT_PATH_NAME,
             ]),
-            'cache-path'         => Disk::path([
-                $_storagePath,
-                ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME,
-                ManagedDefaults::PRIVATE_CACHE_PATH_NAME,
-            ]),
+            'cache-path'         => Disk::path([base_path(), 'bootstrap', 'cache']),
         ];
 
         static::$managed = false;
