@@ -440,9 +440,7 @@ final class Managed
         // shared between instances
         //config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
 
-        /** @noinspection PhpUndefinedMethodInspection */
-        $_cache = \Session::get(static::$cacheKey);
-//        $_cache = Cache::get(static::$cacheKey);
+        $_cache = \Cache::get(static::$cacheKey);
 
         if (!empty($_cache) && is_array($_cache)) {
             static::$config = $_cache;
@@ -459,13 +457,8 @@ final class Managed
      */
     protected static function freshenCache()
     {
-        // Need to set the cache path before every cache operation to make sure the cache does not get
-        // shared between instances
-        //config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+        \Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
 
-        \Session::put(static::getCacheKey(), static::$config);
-        /** @noinspection PhpUndefinedMethodInspection */
-        //Cache::put(static::getCacheKey(), static::$config, static::CACHE_TTL);
         static::$paths = static::getConfig('paths', []);
     }
 
@@ -519,7 +512,7 @@ final class Managed
     protected static function getCacheKey()
     {
         if (empty(static::$cacheKey)) {
-            static::$cacheKey = Disk::segment([static::CACHE_KEY_PREFIX, static::getHostName()], false, '.');
+            static::$cacheKey = sha1('df.managed.' . static::getHostName());
             config(['cache.prefix' => static::$cacheKey]);
         }
 
@@ -599,12 +592,6 @@ final class Managed
     public static function getCachePath()
     {
         return Disk::path([static::getCacheRoot(), static::getHostName(true)], true);
-    }
-
-    /** Returns cache key prefix for non disk based caches */
-    public static function getCacheKeyPrefix()
-    {
-        return 'dreamfactory:' . static::getHostName(true) . ':';
     }
 
     /**
