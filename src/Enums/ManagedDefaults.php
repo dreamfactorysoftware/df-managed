@@ -16,10 +16,12 @@ class ManagedDefaults extends FactoryEnum
      */
     const CONFIG_CACHE_TTL = 5;
     /**
-     * @type
+     * @type string
      */
     const CONSOLE_X_HEADER = 'X-DreamFactory-Console-Key';
-    /** @type string The name of the cluster manifest file */
+    /**
+     * @type string The name of the cluster manifest file
+     */
     const CLUSTER_MANIFEST_FILE = '.dfe.cluster.json';
     /**
      * @type string The name of the "private" path
@@ -41,6 +43,10 @@ class ManagedDefaults extends FactoryEnum
      * @type string
      */
     const MANAGED_INSTANCE_MARKER = '/var/www/.dfe-managed';
+    /**
+     * @type string The cache path name
+     */
+    const PRIVATE_CACHE_PATH_NAME = '.cache';
     /**
      * @type string The default path where logs go under $storagePath
      */

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <phpdoc>
-	<title>DreamFactory(tm) Managed Integration Library</title>
+	<title>DreamFactory(tm) Managed Service Library</title>
 	<parser>
 		<default-package-name>DreamFactory\Managed</default-package-name>
 		<target>build/doc</target>
