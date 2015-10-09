@@ -364,7 +364,8 @@ final class Managed
      */
     public static function getLogPath()
     {
-        return Disk::path([array_get(static::$paths, 'log-path')], true);
+        //return Disk::path([array_get(static::$paths, 'log-path')], true);
+        return Disk::path([sys_get_temp_dir(), '.df-log']);
     }
 
     /**
@@ -374,7 +375,7 @@ final class Managed
      */
     public static function getLogFile($name = null)
     {
-        return Disk::path([static::getLogPath(), ($name ?: static::getInstanceName() . '.log')]);
+        return Disk::path([static::getLogPath(), ($name ?: 'dreamfactory-'. static::getHostName() . '.log')]);
     }
 
     /**
@@ -525,7 +526,7 @@ final class Managed
      */
     public static function getCachePath()
     {
-        return Disk::path([static::getCacheRoot(), static::getHostName(true)], true);
+        return Disk::path([static::getCacheRoot(), static::getHostName(true)]);
     }
 
     /**
@@ -594,7 +595,7 @@ final class Managed
     /** Returns cache root */
     public static function getCacheRoot()
     {
-        return Disk::path([sys_get_temp_dir(), '.df']);
+        return Disk::path([sys_get_temp_dir(), '.df-cache']);
     }
 
     /**
