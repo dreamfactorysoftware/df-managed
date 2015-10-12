@@ -26,7 +26,7 @@
     }
   ],
   "require":     {
-    "dreamfactory/fabric-audit": "",
+    "dreamfactory/fabric-audit": "1.1.*",
     "dreamfactory/php-utils":    "1.1.*"
   },
   "require-dev": {
