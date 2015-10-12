@@ -80,6 +80,8 @@ final class Managed
 
         //  If this is a stand-alone instance, just bail now.
         if (config('df.standalone', true)) {
+            logger('managed: df.standalone = true');
+
             return false;
         }
 
@@ -157,7 +159,7 @@ final class Managed
                 Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
-        //logger('Ops/status response code: ' . $_status->status_code);
+        logger('Ops/status response code: ' . $_status->status_code);
 
         if (!$_status->success) {
             throw new \RuntimeException('Unmanaged instance detected.', Response::HTTP_NOT_FOUND);
@@ -375,7 +377,7 @@ final class Managed
      */
     public static function getLogFile($name = null)
     {
-        return Disk::path([static::getLogPath(), ($name ?: 'dreamfactory-'. static::getHostName() . '.log')]);
+        return Disk::path([static::getLogPath(), ($name ?: 'dreamfactory-' . static::getHostName() . '.log')]);
     }
 
     /**
