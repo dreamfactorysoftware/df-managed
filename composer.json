@@ -26,12 +26,11 @@
     }
   ],
   "require":     {
-    "dreamfactory/fabric-audit": "1.1.*",
-    "dreamfactory/php-utils":    "1.1.*"
+    "dreamfactory/php-utils": "1.1.*"
   },
   "require-dev": {
-    "phpunit/phpunit": "@stable",
-    "laravel/laravel": "5.1.*"
+    "laravel/laravel": "5.1.*",
+    "phpunit/phpunit": "@stable"
   },
   "autoload":    {
     "psr-4": {
@@ -43,7 +42,7 @@
   },
   "extra":       {
     "branch-alias": {
-      "dev-develop": "0.1.x-dev"
+      "dev-develop": "1.0.x-dev"
     }
   }
 }
