@@ -4,10 +4,14 @@ use DreamFactory\Library\Utility\Curl;
 use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Library\Utility\IfSet;
 use DreamFactory\Library\Utility\JsonFile;
+use DreamFactory\Managed\Enums\AuditLevels;
 use DreamFactory\Managed\Enums\ManagedDefaults;
+use DreamFactory\Managed\Facades\Audit;
+use DreamFactory\Managed\Services\AuditingService;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
-use Symfony\Component\HttpFoundation\Request;
+use Illuminate\Support\Facades\Session;
 
 /**
  * Methods for interfacing with DreamFactory Enterprise (DFE)
@@ -108,6 +112,24 @@ final class Managed
     }
 
     /**
+     * @param \Illuminate\Http\Request $request     The original request
+     * @param array|null               $sessionData Optional session data
+     * @param int                      $level       The level of the audit record. Defaults to INFO
+     * @param string                   $facility    The facility. No longer part of GELF, or used by DFE, but kept for compatibility
+     */
+    public static function auditRequest(Request $request, $sessionData = null, $level = AuditLevels::INFO, $facility = AuditingService::DEFAULT_FACILITY)
+    {
+        if (static::isManagedInstance()) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            Audit::logRequest(static::getInstanceName(),
+                $request,
+                $sessionData ?: Session::all(),
+                $level,
+                $facility);
+        }
+    }
+
+    /**
      * @param string $key
      * @param mixed  $default
      *
@@ -181,7 +203,7 @@ final class Managed
             'storage-map'   => (array)data_get($_status, 'response.metadata.storage-map', []),
             'home-links'    => (array)data_get($_status, 'response.home-links'),
             'managed-links' => (array)data_get($_status, 'response.managed-links'),
-            'env'           => (array)data_get($_status, 'response.metadata.env', []),
+            'env'           => $_env = (array)data_get($_status, 'response.metadata.env', []),
             'audit'         => (array)data_get($_status, 'response.metadata.audit', []),
         ]);
 
@@ -205,6 +227,12 @@ final class Managed
 
         if (!empty($_limits = (array)data_get($_status, 'response.metadata.limits', []))) {
             static::setConfig('limits', $_limits);
+        }
+
+        //  Set up our audit destination
+        if (isset($_env, $_env['audit-host'], $_env['audit-port'])) {
+            Audit::getLogger()->setHost(array_get($_env, 'audit-host'));
+            Audit::getLogger()->setPort(array_get($_env, 'audit-port'));
         }
 
         static::freshenCache();
@@ -256,6 +284,15 @@ final class Managed
                 'storage-root'  => rtrim($storageRoot, ' ' . DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
                 'instance-name' => str_replace($_defaultDomain, null, $_host),
             ]);
+
+            //  Pull out the audit info...
+            $_env = static::getConfig('env', []);
+
+            //  Set up our audit destination
+            if (!empty($_env) && isset($_env['audit-host'], $_env['audit-port'])) {
+                Audit::getLogger()->setHost(array_get($_env, 'audit-host'));
+                Audit::getLogger()->setPort(array_get($_env, 'audit-port'));
+            }
 
             //  It's all good!
             return true;
