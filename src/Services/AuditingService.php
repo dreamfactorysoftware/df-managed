@@ -2,6 +2,7 @@
 
 use DreamFactory\Managed\Components\GelfMessage;
 use DreamFactory\Managed\Enums\AuditLevels;
+use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Support\GelfLogger;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -60,6 +61,14 @@ class AuditingService
     public function setHost($host = GelfLogger::DEFAULT_HOST)
     {
         $this->getLogger()->setHost($host);
+    }
+
+    /**
+     * @param int $port
+     */
+    public function setPort($port = GelfLogger::DEFAULT_PORT)
+    {
+        $this->getLogger()->setPort($port);
     }
 
     /**
@@ -139,9 +148,15 @@ class AuditingService
             $_message->setFullMessage('DFE Audit | ' . implode(', ',
                     $_data['source_ip']) . ' | ' . $_data['request_timestamp']);
 
-            $this->getLogger()->send($_message);
+            $_result = $this->getLogger()->send($_message);
+
+            logger('audit ' .
+                ($_result ? 'success' : 'failure') .
+                ': ' .
+                json_encode($_message->toArray(), JSON_UNESCAPED_SLASHES));
         } catch (\Exception $_ex) {
             //  Completely ignore any issues
+            logger('audit send fail: ' . $_ex->getMessage());
         }
     }
 
@@ -164,6 +179,8 @@ class AuditingService
             'app_name'          => $request->query->get('app_name',
                 $request->headers->get('x-dreamfactory-application-name',
                     $request->headers->get('x-application-name'))),
+            'api_key'           => $request->query->get('api_key',
+                $request->headers->get(ManagedDefaults::DF_API_KEY)),
             'dfe'               => [],
             'host'              => $request->getHost(),
             'method'            => $request->getMethod(),

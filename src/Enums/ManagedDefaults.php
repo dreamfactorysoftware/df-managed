@@ -20,6 +20,10 @@ class ManagedDefaults extends FactoryEnum
      */
     const CONSOLE_X_HEADER = 'X-DreamFactory-Console-Key';
     /**
+     * @type string
+     */
+    const DF_API_KEY = 'X-DreamFactory-Api-Key';
+    /**
      * @type string The name of the cluster manifest file
      */
     const CLUSTER_MANIFEST_FILE = '.dfe.cluster.json';
