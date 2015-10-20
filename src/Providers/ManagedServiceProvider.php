@@ -50,23 +50,22 @@ class ManagedServiceProvider extends ServiceProvider
 
         $_dbConfig = Managed::getDatabaseConfig();
 
-        //  Insert our config into the array
+        //  Insert our config into the array and set the default connection
         $_key = md5($_dbConfig['database']);
         $_connections = config(static::DATABASE_ALL_CONNECTIONS_KEY);
         $_connections[$_key] = $_dbConfig;
-        config([static::DATABASE_ALL_CONNECTIONS_KEY => $_connections]);
 
-        //  Setting the default connection to use the newly inserted connection from enterprise console.
-        config([static::DATABASE_DEFAULT_CONNECTION_KEY => $_key]);
-
-        logger('managed: db config set', $_dbConfig);
+        config([
+            static::DATABASE_ALL_CONNECTIONS_KEY    => $_connections,
+            static::DATABASE_DEFAULT_CONNECTION_KEY => $_key,
+        ]);
     }
 
     /** @inheritdoc */
     public function register()
     {
         $this->app->singleton(static::IOC_NAME,
-            function ($app){
+            function ($app) {
                 return new ManagedService($app);
             });
     }

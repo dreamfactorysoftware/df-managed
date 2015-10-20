@@ -32,13 +32,6 @@ class AuditServiceProvider extends ServiceProvider
     //********************************************************************************
 
     /**
-     * Run-time init
-     */
-    public function boot()
-    {
-    }
-
-    /**
      * Register the service provider.
      *
      * @return void

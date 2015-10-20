@@ -11,6 +11,7 @@ use DreamFactory\Managed\Services\AuditingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 
 /**
@@ -67,6 +68,10 @@ final class Managed
      * @type string The root storage directory
      */
     protected static $storageRoot;
+    /**
+     * @type bool If true, log files will be written to the temp space
+     */
+    protected static $logToTemp = true;
 
     //*************************************************************************
     //* Methods
@@ -84,8 +89,6 @@ final class Managed
 
         //  If this is a stand-alone instance, just bail now.
         if (config('df.standalone', true)) {
-            logger('managed: df.standalone = true');
-
             return false;
         }
 
@@ -100,7 +103,8 @@ final class Managed
                 //  Discover our secret powers...
                 static::interrogateCluster();
             } catch (\RuntimeException $_ex) {
-                logger('Error interrogating console: ' . $_ex->getMessage());
+                /** @noinspection PhpUndefinedMethodInspection */
+                Log::error('Error interrogating console: ' . $_ex->getMessage());
 
                 return false;
             }
@@ -120,10 +124,17 @@ final class Managed
     public static function auditRequest(Request $request, $sessionData = null, $level = AuditLevels::INFO, $facility = AuditingService::DEFAULT_FACILITY)
     {
         if (static::isManagedInstance()) {
-            /** @noinspection PhpUndefinedMethodInspection */
+            if (null === $sessionData || !is_array($sessionData)) {
+                /** @noinspection PhpUndefinedMethodInspection */
+                $sessionData = Session::all();
+            }
+
+            array_forget($sessionData, ['_token', 'token', 'api_key', 'session_token']);
+            $sessionData['metadata'] = static::getConfig('audit', []);
+
             Audit::logRequest(static::getInstanceName(),
                 $request,
-                $sessionData ?: Session::all(),
+                $sessionData,
                 $level,
                 $facility);
         }
@@ -181,7 +192,7 @@ final class Managed
                 Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
-        logger('Ops/status response code: ' . $_status->status_code);
+        //logger('Ops/status response code: ' . $_status->status_code);
 
         if (!$_status->success) {
             throw new \RuntimeException('Unmanaged instance detected.', Response::HTTP_NOT_FOUND);
@@ -204,7 +215,7 @@ final class Managed
             'home-links'    => (array)data_get($_status, 'response.home-links'),
             'managed-links' => (array)data_get($_status, 'response.managed-links'),
             'env'           => $_env = (array)data_get($_status, 'response.metadata.env', []),
-            'audit'         => (array)data_get($_status, 'response.metadata.audit', []),
+            'audit'         => $_audit = (array)data_get($_status, 'response.metadata.audit', []),
         ]);
 
         //  Clean up the paths accordingly
@@ -230,9 +241,9 @@ final class Managed
         }
 
         //  Set up our audit destination
-        if (isset($_env, $_env['audit-host'], $_env['audit-port'])) {
-            Audit::getLogger()->setHost(array_get($_env, 'audit-host'));
-            Audit::getLogger()->setPort(array_get($_env, 'audit-port'));
+        if (!empty($_env) && isset($_env['audit-host'], $_env['audit-port'])) {
+            Audit::setHost(array_get($_env, 'audit-host'));
+            Audit::setPort(array_get($_env, 'audit-port'));
         }
 
         static::freshenCache();
@@ -250,7 +261,8 @@ final class Managed
         try {
             //  Can we build the API url
             if (!isset(static::$config['console-api-url'], static::$config['console-api-key'])) {
-                logger('Invalid configuration: No "console-api-url" or "console-api-key" in cluster manifest.');
+                /** @noinspection PhpUndefinedMethodInspection */
+                Log::error('Invalid configuration: No "console-api-url" or "console-api-key" in cluster manifest.');
 
                 return false;
             }
@@ -266,7 +278,8 @@ final class Managed
 
                 //	If this isn't an enterprise instance, bail
                 if (false === strpos($_host, $_defaultDomain)) {
-                    logger('Invalid "default-domain" for host "' . $_host . '"');
+                    /** @noinspection PhpUndefinedMethodInspection */
+                    Log::error('Invalid "default-domain" for host "' . $_host . '"');
 
                     return false;
                 }
@@ -275,7 +288,8 @@ final class Managed
             }
 
             if (empty($storageRoot = static::getConfig('storage-root'))) {
-                logger('No "storage-root" found.');
+                /** @noinspection PhpUndefinedMethodInspection */
+                Log::error('No "storage-root" found.');
 
                 return false;
             }
@@ -330,7 +344,8 @@ final class Managed
 
             return $_result;
         } catch (\Exception $_ex) {
-            logger('api error: ' . $_ex->getMessage());
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('Console API Error: ' . $_ex->getMessage());
 
             return false;
         }
@@ -403,8 +418,13 @@ final class Managed
      */
     public static function getLogPath()
     {
-        //return Disk::path([array_get(static::$paths, 'log-path')], true);
-        return Disk::path([sys_get_temp_dir(), '.df-log']);
+        return static::$logToTemp
+            ? Disk::path([sys_get_temp_dir(), '.df-log'])
+            : Disk::path([
+                array_get(static::$paths,
+                    'log-path'),
+            ],
+                true);
     }
 
     /**
