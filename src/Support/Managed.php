@@ -393,6 +393,11 @@ final class Managed
         return static::getConfig('instance-name');
     }
 
+    public static function getClusterName()
+    {
+        return static::getClusterConfiguration('cluster-id');
+    }
+
     /**
      * @param string|null $append Optional path to append
      *
