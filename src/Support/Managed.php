@@ -87,8 +87,8 @@ final class Managed
     {
         static::initializeDefaults();
 
-        //  If this is a stand-alone instance, just bail now.
-        if (config('df.standalone', true)) {
+        //  If this is not a managed instance, just bail now.
+        if (!config('df.managed')) {
             return false;
         }
 
@@ -119,10 +119,15 @@ final class Managed
      * @param \Illuminate\Http\Request $request     The original request
      * @param array|null               $sessionData Optional session data
      * @param int                      $level       The level of the audit record. Defaults to INFO
-     * @param string                   $facility    The facility. No longer part of GELF, or used by DFE, but kept for compatibility
+     * @param string                   $facility    The facility. No longer part of GELF, or used by DFE, but kept for
+     *                                              compatibility
      */
-    public static function auditRequest(Request $request, $sessionData = null, $level = AuditLevels::INFO, $facility = AuditingService::DEFAULT_FACILITY)
-    {
+    public static function auditRequest(
+        Request $request,
+        $sessionData = null,
+        $level = AuditLevels::INFO,
+        $facility = AuditingService::DEFAULT_FACILITY
+    ){
         if (static::isManagedInstance()) {
             if (null === $sessionData || !is_array($sessionData)) {
                 /** @noinspection PhpUndefinedMethodInspection */
