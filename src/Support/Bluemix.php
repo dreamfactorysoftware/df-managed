@@ -77,7 +77,7 @@ final class Bluemix
         //  Decode and examine
         try {
             /** @type string $_envData */
-            $_envData = getenv(ENV_KEY);
+            $_envData = getenv(static::BM_ENV_KEY);
 
             if (!empty($_availableServices = Json::decode($_envData, true))) {
                 $_serviceSet = array_get($_availableServices, $service);
