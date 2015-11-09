@@ -173,12 +173,6 @@ class AuditingService
             'source_ip'         => $request->getClientIps(),
             'content_type'      => $request->getContentType(),
             'content_length'    => (int)$request->headers->get('Content-Length', 0),
-            'token'             => $request->headers->get('x-dreamfactory-session-token',
-                $request->headers->get('x-dreamfactory-access-token',
-                    $request->headers->get('authorization', $request->query->get('access_token')))),
-            'app_name'          => $request->query->get('app_name',
-                $request->headers->get('x-dreamfactory-application-name',
-                    $request->headers->get('x-application-name'))),
             'api_key'           => $request->query->get('api_key',
                 $request->headers->get(ManagedDefaults::DF_API_KEY)),
             'dfe'               => [],
@@ -186,7 +180,7 @@ class AuditingService
             'method'            => $request->getMethod(),
             'path_info'         => $request->getPathInfo(),
             'path_translated'   => $request->server->get('PATH_TRANSLATED'),
-            'query'             => $request->query->all(),
+            'query'             => $request->query->all() ?: [],
         ];
     }
 
