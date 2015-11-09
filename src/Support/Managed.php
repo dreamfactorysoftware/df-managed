@@ -721,7 +721,6 @@ final class Managed
         static::$cacheKey = null;
         static::$config = [];
         static::$paths = [];
-        static::$initialized = false;
         static::$accessToken = null;
         static::$hostName = [];
         static::$managed = false;
