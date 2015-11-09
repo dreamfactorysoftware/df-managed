@@ -597,7 +597,7 @@ final class Managed
     {
         // Need to set the cache path before every cache operation to make sure the cache does not get
         // shared between instances
-//        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
 
         /** @noinspection PhpUndefinedMethodInspection */
         $_cache = Cache::get(static::$cacheKey);
@@ -618,7 +618,7 @@ final class Managed
      */
     protected static function freshenCache()
     {
-//        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
+        config([static::CACHE_CONFIG_KEY => static::getCachePath()]);
 
         //  Put host name in config
         static::setConfig('managed.host-name', static::$hostName);
