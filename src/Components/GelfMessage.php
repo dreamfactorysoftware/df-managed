@@ -1,6 +1,9 @@
 <?php namespace DreamFactory\Managed\Components;
 
+use DreamFactory\Library\Utility\Json;
 use DreamFactory\Managed\Enums\AuditLevels;
+use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Contracts\Support\Jsonable;
 
 /**
  * A GELF v1.1 message
@@ -8,7 +11,7 @@ use DreamFactory\Managed\Enums\AuditLevels;
  *
  * @link http://www.graylog2.org/resources/gelf/specification
  */
-class GelfMessage
+class GelfMessage implements Arrayable, Jsonable
 {
     //******************************************************************************
     //* Constants
@@ -102,27 +105,6 @@ class GelfMessage
     }
 
     /**
-     * @return array
-     */
-    public function toArray()
-    {
-        $_message = [
-            'version'       => $this->version,
-            'host'          => $this->host,
-            'short_message' => $this->shortMessage,
-            'full_message'  => $this->fullMessage,
-            'timestamp'     => $this->timestamp,
-            'level'         => $this->level,
-        ];
-
-        if (!empty($this->additional)) {
-            $_message = array_merge($_message, $this->additional);
-        }
-
-        return $_message;
-    }
-
-    /**
      * @param string $name The name of the additional field
      *
      * @throws \InvalidArgumentException
@@ -152,7 +134,7 @@ class GelfMessage
 
         if (null === $value && array_key_exists($_key, $this->additional)) {
             unset($this->additional[$_key]);
-        } else {
+        }else {
             $this->additional[$_key] = $value;
         }
 
@@ -262,5 +244,32 @@ class GelfMessage
         $this->level = $level;
 
         return $this;
+    }
+
+    /** @inheritdoc */
+    public function toJson($options = 0)
+    {
+        return Json::encode($this->toArray(), $options);
+    }
+
+    /**
+     * @return array
+     */
+    public function toArray()
+    {
+        $_message = [
+            'version'       => $this->version,
+            'host'          => $this->host,
+            'short_message' => $this->shortMessage,
+            'full_message'  => $this->fullMessage,
+            'timestamp'     => $this->timestamp,
+            'level'         => $this->level,
+        ];
+
+        if (!empty($this->additional)) {
+            $_message = array_merge($_message, $this->additional);
+        }
+
+        return $_message;
     }
 }

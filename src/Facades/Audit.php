@@ -1,6 +1,6 @@
 <?php namespace DreamFactory\Managed\Facades;
 
-use DreamFactory\Managed\Enums\AuditLevels;
+use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
 use DreamFactory\Managed\Providers\AuditServiceProvider;
 use DreamFactory\Managed\Services\AuditingService;
 use DreamFactory\Managed\Support\GelfLogger;
@@ -11,11 +11,10 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * Audit
  *
- * @method static void setHost($host = GelfLogger::DEFAULT_HOST)
+ * @method static void setHost($host = GelfLogger::DEFAULT_HOST, $port = GelfLogger::DEFAULT_PORT)
  * @method static void setPort($port = GelfLogger::DEFAULT_PORT)
  * @method static AuditingService setMetadata(array $metadata)
- * @method static bool log($data = [], $level = AuditLevels::INFO, $request = null)
- * @method static bool logRequest($instanceId, Request $request, $sessionData = null, $level = AuditLevels::INFO, $facility = AuditingService::DEFAULT_FACILITY)
+ * @method static bool logRequest(ProvidesManagedConfig $manager, Request $request, $sessionData = null)
  * @method static GelfLogger getLogger()
  * @method static AuditingService setLogger(LoggerInterface $logger)
  */

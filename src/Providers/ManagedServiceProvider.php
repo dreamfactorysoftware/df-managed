@@ -1,7 +1,6 @@
 <?php namespace DreamFactory\Managed\Providers;
 
 use DreamFactory\Managed\Services\ManagedService;
-use DreamFactory\Managed\Support\Managed;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -35,8 +34,11 @@ class ManagedServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        /** @type ManagedService $_service */
+        $_service = app(static::IOC_NAME);
+
         //  Kick off the management interrogation
-        Managed::initialize();
+        $_service->initialize();
 
         //******************************************************************************
         //* To be efficient laravel DatabaseManager only creates a connection once and
@@ -48,7 +50,7 @@ class ManagedServiceProvider extends ServiceProvider
         //* database.default to this new connection.
         //******************************************************************************
 
-        $_dbConfig = Managed::getDatabaseConfig();
+        $_dbConfig = $_service->getDatabaseConfig();
 
         //  Insert our config into the array and set the default connection
         $_key = md5($_dbConfig['database']);
@@ -65,7 +67,7 @@ class ManagedServiceProvider extends ServiceProvider
     public function register()
     {
         $this->app->singleton(static::IOC_NAME,
-            function ($app) {
+            function ($app){
                 return new ManagedService($app);
             });
     }

@@ -40,7 +40,7 @@ class AuditServiceProvider extends ServiceProvider
     {
         //  Register object into instance container
         $this->app->singleton(static::IOC_NAME,
-            function ($app) {
+            function ($app){
                 return new AuditingService($app);
             });
     }
