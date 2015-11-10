@@ -1,7 +1,7 @@
-<?php namespace DreamFactory\Managed\Components;
+<?php namespace DreamFactory\Managed\Support;
 
-use DreamFactory\Library\Utility\Json;
 use DreamFactory\Managed\Enums\AuditLevels;
+use DreamFactory\Managed\Enums\GelfLevels;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
 
@@ -67,9 +67,25 @@ class GelfMessage implements Arrayable, Jsonable
         $this->reset()->addAdditionalFields($additional);
     }
 
-    //**********************************************************************
-    //* Public Methods
-    //**********************************************************************
+    /**
+     * Creates an instance and fills with some stuff
+     *
+     * @param array       $contents The contents (additional fields) to add to the message
+     * @param int         $level    The level of the message
+     * @param string|null $short    An optional short message
+     * @param string|null $full     An optional full (i.e. not short) message
+     *
+     * @return static
+     */
+    public static function make($contents = [], $level = GelfLevels::INFO, $short = null, $full = null)
+    {
+        $_message = new static($contents);
+        $_message->setLevel($level);
+        $short && $_message->setShortMessage($short);
+        $full && $_message->setFullMessage($full);
+
+        return $_message;
+    }
 
     /**
      * Resets the message to default values
@@ -134,7 +150,7 @@ class GelfMessage implements Arrayable, Jsonable
 
         if (null === $value && array_key_exists($_key, $this->additional)) {
             unset($this->additional[$_key]);
-        }else {
+        } else {
             $this->additional[$_key] = $value;
         }
 
@@ -249,7 +265,7 @@ class GelfMessage implements Arrayable, Jsonable
     /** @inheritdoc */
     public function toJson($options = 0)
     {
-        return Json::encode($this->toArray(), $options);
+        return json_encode($this->toArray(), $options);
     }
 
     /**

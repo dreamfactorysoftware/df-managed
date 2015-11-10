@@ -12,5 +12,4 @@ interface ProvidesManagedDatabase
      * @return array
      */
     public function getDatabaseConfig();
-
 }

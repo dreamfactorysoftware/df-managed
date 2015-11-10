@@ -9,12 +9,12 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Audit
+ * AuditingService facade
  *
  * @method static void setHost($host = GelfLogger::DEFAULT_HOST, $port = GelfLogger::DEFAULT_PORT)
  * @method static void setPort($port = GelfLogger::DEFAULT_PORT)
  * @method static AuditingService setMetadata(array $metadata)
- * @method static bool logRequest(ProvidesManagedConfig $manager, Request $request, $sessionData = null)
+ * @method static bool auditRequest(ProvidesManagedConfig $manager, Request $request, $sessionData = null)
  * @method static GelfLogger getLogger()
  * @method static AuditingService setLogger(LoggerInterface $logger)
  */
@@ -33,5 +33,4 @@ class Audit extends Facade
     {
         return AuditServiceProvider::IOC_NAME;
     }
-
 }

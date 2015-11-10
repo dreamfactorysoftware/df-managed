@@ -32,9 +32,9 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     //******************************************************************************
 
     /**
-     * @type string Our API access token
+     * @type string Our API signature
      */
-    protected $accessToken = null;
+    protected $signature = null;
     /**
      * @type string
      */
@@ -73,27 +73,14 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     //******************************************************************************
 
     /**
-     * Perform any service initialization
-     */
-    public function boot()
-    {
-        $this->initialize();
-    }
-
-    /**
      * Initialization for hosted DSPs
      *
      * @return array
      * @throws \RuntimeException
      */
-    public function initialize()
+    public function boot()
     {
         $this->initializeDefaults();
-
-        //  If this is not a managed instance, just bail now.
-        if (!config('df.managed')) {
-            return $this->reset();
-        }
 
         if ($this->loadCachedValues()) {
             return true;
@@ -122,7 +109,7 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
      */
     public function auditRequest(Request $request, $sessionData = null)
     {
-        $this->isManaged() && Audit::logRequest($this, $request, $sessionData);
+        $this->isManaged() && Audit::auditRequest($this, $request, $sessionData);
     }
 
     /** @inheritdoc */
@@ -134,23 +121,40 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     /** @inheritdoc */
     public function getClusterId()
     {
-        return $this->isManaged()
-            ? $this->getClusterEnvironment('cluster-id')
-            : null;
+        return $this->isManaged() ? $this->getClusterEnvironment('cluster-id') : null;
     }
 
     /** @inheritdoc */
     public function getInstanceId()
     {
-        return $this->isManaged()
-            ? $this->getClusterEnvironment('instance-id')
-            : null;
+        return $this->isManaged() ? $this->getClusterEnvironment('instance-id') : null;
     }
 
     /** @inheritdoc */
     public function getClusterName()
     {
         return $this->getClusterId();
+    }
+
+    /** @inheritdoc */
+    public function getLogPath()
+    {
+        return $this->logToTemp
+            ? Disk::path([sys_get_temp_dir(), '.df-log'])
+            : Disk::path([
+                array_get($this->paths,
+                    'log-path'),
+            ],
+                true);
+    }
+
+    /** @inheritdoc */
+    public function getLogFile($name = null)
+    {
+        return Disk::path([
+            $this->getLogPath(),
+            ($name ?: 'dfe-' . $this->getHostName() . '.log'),
+        ]);
     }
 
     /** @inheritdoc */
@@ -163,23 +167,6 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     public function getPrivatePath($append = null)
     {
         return Disk::path([array_get($this->paths, 'private-path'), $append], true);
-    }
-
-    /** @inheritdoc */
-    public function getLogPath()
-    {
-        return $this->logToTemp
-            ? Disk::path([sys_get_temp_dir(), '.df-log'])
-            : Disk::path([array_get($this->paths, 'log-path'),], true);
-    }
-
-    /** @inheritdoc */
-    public function getLogFile($name = null)
-    {
-        return Disk::path([
-            $this->getLogPath(),
-            ($name ?: 'dfe-' . $this->getHostName() . '.log'),
-        ]);
     }
 
     /** @inheritdoc */
@@ -198,25 +185,6 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
         return array_get($this->config, $key, $default);
     }
 
-    /**
-     * @param string|array $key
-     * @param mixed|null   $value
-     *
-     * @return array
-     */
-    protected function setConfig($key, $value = null)
-    {
-        if (is_array($key)) {
-            foreach ($key as $_key => $_value) {
-                array_set($this->config, $_key, $_value);
-            }
-
-            return $this->config;
-        }
-
-        return array_set($this->config, $key, $value);
-    }
-
     /** @inheritdoc */
     public function getCachePath()
     {
@@ -228,7 +196,8 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     {
         return $this->isManaged()
             ? $this->getConfig('db')
-            : config('database.connections.' . config('database.default'), []);
+            : config('database.connections.' . config('database.default'),
+                []);
     }
 
     /**
@@ -243,9 +212,7 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     {
         $_limits = $this->getConfig('limits', []);
 
-        return null === $limitKey
-            ? $_limits
-            : array_get($_limits, $limitKey, $default);
+        return null === $limitKey ? $_limits : array_get($_limits, $limitKey, $default);
     }
 
     /**
@@ -253,11 +220,9 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
      *
      * @return string|null
      */
-    public function getConsoleKey()
+    public function getConsoleApiKey()
     {
-        return $this->isManaged()
-            ? hash(ManagedDefaults::DEFAULT_SIGNATURE_METHOD, $this->getClusterId() . $this->getInstanceId() . $this->getHostName())
-            : null;
+        return $this->isManaged() ? $this->getIdentifyingKey(true) : null;
     }
 
     /**
@@ -291,9 +256,28 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     /** @inheritdoc */
     public function isManaged()
     {
-        empty($this->hostName) && $this->initialize();
+        empty($this->hostName) && $this->boot();
 
         return $this->managed;
+    }
+
+    /**
+     * @param string|array $key
+     * @param mixed|null   $value
+     *
+     * @return array
+     */
+    protected function setConfig($key, $value = null)
+    {
+        if (is_array($key)) {
+            foreach ($key as $_key => $_value) {
+                array_set($this->config, $_key, $_value);
+            }
+
+            return $this->config;
+        }
+
+        return array_set($this->config, $key, $value);
     }
 
     /**
@@ -322,9 +306,7 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
             throw new \RuntimeException('This instance is not configured properly for your system environment.');
         }
 
-        return null === $key
-            ? $this->config
-            : $this->getConfig($key, $default);
+        return null === $key ? $this->config : $this->getConfig($key, $default);
     }
 
     /**
@@ -335,13 +317,14 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     protected function interrogateCluster()
     {
         //  Generate a signature for signing payloads...
-        $this->accessToken = $this->generateSignature();
+        $this->signature = $this->generateSignature();
 
         //  Get my config from console
         $_status = $this->callConsole('status', ['id' => $_id = $this->getInstanceName()]);
 
         if (!($_status instanceof \stdClass) || !data_get($_status, 'response.metadata')) {
-            throw new \RuntimeException('Corrupt response during status query for "' . $_id . '".', Response::HTTP_SERVICE_UNAVAILABLE);
+            throw new \RuntimeException('Corrupt response during status query for "' . $_id . '".',
+                Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
         if (!$_status->success) {
@@ -349,7 +332,8 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
         }
 
         if (data_get($_status, 'response.archived', false) || data_get($_status, 'response.deleted', false)) {
-            throw new \RuntimeException('Instance "' . $_id . '" has been archived and/or deleted.', Response::HTTP_UNPROCESSABLE_ENTITY);
+            throw new \RuntimeException('Instance "' . $_id . '" has been archived and/or deleted.',
+                Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         //  Stuff all the unadulterated data into the config
@@ -360,7 +344,8 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
         $_paths['log-path'] = Disk::segment([
             array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
             ManagedDefaults::PRIVATE_LOG_PATH_NAME,
-        ], false);
+        ],
+            false);
 
         //  Prepend real base directory to all collected paths and cache statically
         foreach (array_except($_paths, ['storage-root', 'storage-map']) as $_key => $_path) {
@@ -479,25 +464,25 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     protected function callConsole($uri, $payload = [], $curlOptions = [], $method = Request::METHOD_POST)
     {
         try {
+            //  Strip leading double-slash
+            ('//' == substr($uri, 0, 2)) && $uri = substr($uri, 2);
             //  Allow full URIs or manufacture one...
-            if ('http' != substr($uri, 0, 4)) {
-                $uri = $this->config['console-api-url'] . ltrim($uri, '/ ');
-            }
+            ('http' != substr($uri, 0, 4)) && $uri = $this->config['console-api-url'] . ltrim($uri, '/ ');
 
             if (false === ($_result = Curl::request($method, $uri, $this->signPayload($payload), $curlOptions))) {
-                throw new \RuntimeException('Failed to contact API server.');
+                throw new \RuntimeException('Failed to contact DFE console');
             }
 
             if (!($_result instanceof \stdClass)) {
                 if (is_string($_result) && (false === json_decode($_result) || JSON_ERROR_NONE !== json_last_error())) {
-                    throw new \RuntimeException('Invalid response received from DFE console.');
+                    throw new \RuntimeException('Invalid response received from DFE console');
                 }
             }
 
             return $_result;
         } catch (\Exception $_ex) {
             /** @noinspection PhpUndefinedMethodInspection */
-            Log::error('Console API Error: ' . $_ex->getMessage());
+            Log::error('DFE Console API Error: ' . $_ex->getMessage());
 
             return false;
         }
@@ -512,9 +497,9 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     {
         return array_merge([
             'client-id'    => $this->config['client-id'],
-            'access-token' => $this->accessToken,
-        ], $payload
-            ?: []);
+            'access-token' => $this->signature,
+        ],
+            $payload ?: []);
     }
 
     /**
@@ -531,29 +516,21 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     protected function loadCachedValues()
     {
         /** @noinspection PhpUndefinedMethodInspection */
-        return $this->validateCachedConfig(Cache::get($this->getCacheKey()));
-    }
+        /** @type array $_cached */
+        $_cached = Cache::get($this->getCacheKey());
 
-    /**
-     * Ensures that data pulled from the cache is a complete
-     *
-     * @param array $cached
-     *
-     * @return bool
-     */
-    protected function validateCachedConfig($cached = [])
-    {
         //  Check the basics
-        if (empty($cached) || !is_array($cached) || !$this->validateClusterConfig()) {
+        if (empty($_cached) || !is_array($_cached) || !$this->validateClusterConfig()) {
             return false;
         }
 
-        //  Deeper check...
-        if (!isset($cached['env']) || !isset($cached['db']) || !isset($cached['audit'])) {
+        //  Deeper check, these must exist otherwise we need to phone home
+        if (!isset($_cached['paths'], $_cached['env'], $_cached['db'], $_cached['audit'])) {
             return false;
         }
 
-        $this->config = $cached;
+        //  Cool, we got's what we needs's
+        $this->config = $_cached;
         $this->paths = $this->getConfig('paths');
         $this->hostName = $this->getConfig('managed.host-name');
 
@@ -584,10 +561,7 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
      */
     protected function locateClusterEnvironmentFile($file)
     {
-        $_path =
-            isset($_SERVER, $_SERVER['DOCUMENT_ROOT'])
-                ? $_SERVER['DOCUMENT_ROOT']
-                : getcwd();
+        $_path = isset($_SERVER, $_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : getcwd();
 
         while (true) {
             if (file_exists($_path . DIRECTORY_SEPARATOR . $file)) {
@@ -634,16 +608,11 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
      */
     protected function getHostName($hashed = false)
     {
-        $_host =
-            $this->hostName
-                ?: $this->hostName =
-                $this->getConfig('managed.host-name', ((isset($_SERVER['HTTP_HOST']))
-                    ? $_SERVER['HTTP_HOST']
-                    : gethostname()));
+        $_host = $this->hostName
+            ?: $this->hostName = $this->getConfig('managed.host-name',
+                ((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
 
-        return $hashed
-            ? hash(ManagedDefaults::DEFAULT_SIGNATURE_METHOD, $_host)
-            : $_host;
+        return $hashed ? hash(ManagedDefaults::DEFAULT_ALGORITHM, $_host) : $_host;
     }
 
     /**
@@ -654,8 +623,8 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     protected function getCacheKey()
     {
         return $this->cacheKey
-            ?: $this->cacheKey =
-                hash(ManagedDefaults::DEFAULT_SIGNATURE_METHOD, $this->getClusterId() . $this->getInstanceId() . $this->getHostName(true));
+            ?: $this->cacheKey = hash(ManagedDefaults::DEFAULT_ALGORITHM,
+                $this->getClusterId() . $this->getInstanceId() . $this->getHostName(true));
     }
 
     /**
@@ -668,13 +637,12 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
         $this->reset();
         $this->getCacheKey();
 
-        $this->privatePathName = Disk::segment(config('df.private-path-name', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME));
+        $this->privatePathName =
+            Disk::segment(config('df.private-path-name', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME));
 
-        $_storagePath =
-            Disk::path([
-                $storagePath
-                    ?: storage_path(),
-            ]);
+        $_storagePath = Disk::path([
+            $storagePath ?: storage_path(),
+        ]);
 
         $this->paths = [
             'storage-root'       => $_storagePath,
@@ -698,8 +666,22 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     protected function reset()
     {
         $this->config = $this->paths = [];
-        $this->cacheKey = $this->accessToken = $this->hostName = $this->storageRoot = null;
+        $this->cacheKey = $this->signature = $this->hostName = $this->storageRoot = null;
 
         return $this->managed = false;
+    }
+
+    /**
+     * Returns a string that is unique to the cluster-instance
+     *
+     * @param bool $hashed If true, value will be returned pre-hashed for your convenience
+     *
+     * @return null|string
+     */
+    protected function getIdentifyingKey($hashed = false)
+    {
+        $_key = hash(ManagedDefaults::DEFAULT_ALGORITHM, $this->getIdentifyingKey());
+
+        return $hashed ? hash(ManagedDefaults::DEFAULT_ALGORITHM, $_key) : $_key;
     }
 }

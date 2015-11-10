@@ -7,13 +7,6 @@ interface ProvidesManagedStorage
     //******************************************************************************
 
     /**
-     * Returns the instance's private cache path
-     *
-     * @return string
-     */
-    public function getCachePath();
-
-    /**
      * Returns the name of the "private-path" directory. Usually this is ".private"
      *
      * @return string

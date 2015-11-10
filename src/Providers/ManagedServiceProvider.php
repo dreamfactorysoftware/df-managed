@@ -38,7 +38,10 @@ class ManagedServiceProvider extends ServiceProvider
         $_service = app(static::IOC_NAME);
 
         //  Kick off the management interrogation
-        $_service->initialize();
+        if (!$_service->boot()) {
+            //  Not managed? Broken install prolly
+            return;
+        }
 
         //******************************************************************************
         //* To be efficient laravel DatabaseManager only creates a connection once and
