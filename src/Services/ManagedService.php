@@ -6,11 +6,11 @@ use DreamFactory\Library\Utility\JsonFile;
 use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
 use DreamFactory\Managed\Contracts\ProvidesManagedStorage;
 use DreamFactory\Managed\Enums\ManagedDefaults;
+use DreamFactory\Managed\Exceptions\ManagedInstanceException;
 use DreamFactory\Managed\Facades\Audit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 /**
  * A service that returns various configuration data that are common across managed
@@ -76,7 +76,7 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
      * Initialization for hosted DSPs
      *
      * @return array
-     * @throws \RuntimeException
+     * @throws \DreamFactory\Managed\Exceptions\ManagedInstanceException
      */
     public function boot()
     {
@@ -95,11 +95,12 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
         try {
             //  Discover our secret powers...
             return $this->interrogateCluster();
-        } catch (\RuntimeException $_ex) {
-            /** @noinspection PhpUndefinedMethodInspection */
-            Log::error('Error interrogating console: ' . $_ex->getMessage());
+        } catch (\Exception $_ex) {
+            $this->reset();
 
-            return $this->reset();
+            throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(),
+                $_ex->getCode(),
+                $_ex);
         }
     }
 
@@ -396,10 +397,7 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
 
             //  Can we build the API url
             if (empty($_url) || !$this->getConfig('console-api-key')) {
-                /** @noinspection PhpUndefinedMethodInspection */
-                Log::error('Invalid configuration: No "console-api-url" or "console-api-key" in cluster manifest.');
-
-                return false;
+                throw new ManagedInstanceException('Invalid configuration: No "console-api-url" or "console-api-key" in cluster manifest.');
             }
 
             //  Ensure trailing slash on console-api-url
@@ -414,10 +412,7 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
 
                 //	If this isn't an enterprise instance, bail
                 if (false === strpos($_host, $_defaultDomain)) {
-                    /** @noinspection PhpUndefinedMethodInspection */
-                    Log::error('Invalid "default-domain" for host "' . $_host . '"');
-
-                    return false;
+                    throw new ManagedInstanceException('Invalid "default-domain" for host "' . $_host . '"');
                 }
 
                 $this->setConfig('default-domain', $_defaultDomain);
@@ -425,10 +420,7 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
 
             //  Make sure we have a storage root
             if (empty($storageRoot = $this->getConfig('storage-root'))) {
-                /** @noinspection PhpUndefinedMethodInspection */
-                Log::error('No "storage-root" found.');
-
-                return false;
+                throw new ManagedInstanceException('No "storage-root" found.');
             }
 
             //  Set them cleanly into our config
@@ -489,10 +481,7 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
 
             return $_result;
         } catch (\Exception $_ex) {
-            /** @noinspection PhpUndefinedMethodInspection */
-            Log::error('DFE Console API Error: ' . $_ex->getMessage());
-
-            return false;
+            throw new ManagedInstanceException('DFE Console API Error: ' . $_ex->getMessage(), $_ex->getCode(), $_ex);
         }
     }
 
@@ -688,7 +677,9 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
      */
     protected function getIdentifyingKey($hashed = false)
     {
-        $_key = hash(ManagedDefaults::DEFAULT_ALGORITHM, $this->getIdentifyingKey());
+        $_key =
+            hash(ManagedDefaults::DEFAULT_ALGORITHM,
+                implode('.', [$this->getClusterId(), $this->getInstanceId(), $this->getHostName(),]));
 
         return $hashed ? hash(ManagedDefaults::DEFAULT_ALGORITHM, $_key) : $_key;
     }
