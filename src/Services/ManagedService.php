@@ -262,6 +262,14 @@ class ManagedService implements ProvidesManagedConfig, ProvidesManagedStorage
     }
 
     /**
+     * @return string
+     */
+    public function getCachePrefix()
+    {
+        return $this->getIdentifyingKey();
+    }
+
+    /**
      * @param string|array $key
      * @param mixed|null   $value
      *

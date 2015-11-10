@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
  * @method static bool auditRequest(Request $request, $sessionData = null)
  * @method static array|mixed getLimits($limitKey = null, $default = [])
  * @method static string getInstanceName()
+ * @method static string getCachePrefix()
  * @method static string getClusterId()
  * @method static string getInstanceId()
  * @method static string getClusterName()
