@@ -1,9 +1,9 @@
 <?php namespace DreamFactory\Managed\Services;
 
 use DreamFactory\Managed\Contracts\ProvidesDataCollection;
-use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
 use DreamFactory\Managed\Enums\AuditLevels;
 use DreamFactory\Managed\Enums\ManagedDefaults;
+use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use DreamFactory\Managed\Support\GelfLogger;
 use DreamFactory\Managed\Support\GelfMessage;
 use Illuminate\Http\Request;
@@ -75,7 +75,7 @@ class AuditingService implements ProvidesDataCollection
      *
      * @return bool
      */
-    public function logRequest(ProvidesManagedConfig $manager, Request $request, $sessionData = [])
+    public function logRequest(Request $request, $sessionData = [])
     {
         try {
             //  Get some session data if none given, then remove any unmentionables...
@@ -83,16 +83,18 @@ class AuditingService implements ProvidesDataCollection
             (empty($sessionData) || !is_array($sessionData)) && $sessionData = Session::all();
             array_forget($sessionData, ['_token', 'token', 'api_key', 'session_token', 'metadata']);
 
+            $_cluster = ClusterServiceProvider::service();
+
             //  Add in stuff for API request logging
             $this->log([
-                'dfe'  => $this->prepareMetadata($manager->getInstanceName(),
+                'dfe'  => $this->prepareMetadata($_cluster->getInstanceName(),
                     $request,
-                    $manager->getConfig('audit', [])),
+                    $_cluster->getConfig('audit', [])),
                 'user' => $sessionData,
             ],
                 AuditLevels::INFO,
                 $request,
-                $manager->getClusterName());
+                $_cluster->getClusterId());
         } catch (\Exception $_ex) {
             //  Completely ignore any issues
         }

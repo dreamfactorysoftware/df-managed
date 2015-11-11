@@ -1,9 +1,10 @@
 <?php namespace Dreamfactory\Managed\Http\Middleware;
 
 use Closure;
+use DreamFactory\Core\Utility\Session;
 use DreamFactory\Managed\Facades\Audit;
 
-class RequestAuditor
+class ClusterAuditor
 {
     //******************************************************************************
     //* Methods
@@ -20,7 +21,13 @@ class RequestAuditor
     public function handle($request, Closure $next)
     {
         try {
-            Audit::auditRequest(app(), $request);
+            try {
+                $_session = Session::getPublicInfo();
+            } catch (\Exception $_ex) {
+                $_session = Session::all();
+            }
+
+            Audit::auditRequest($request, $_session);
         } catch (\Exception $_ex) {
             //  Completely ignored...
         }

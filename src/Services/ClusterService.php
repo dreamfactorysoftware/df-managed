@@ -460,4 +460,17 @@ class ClusterService implements ProvidesManagedConfig
     {
         return $this->getIdentifyingKey();
     }
+
+    /**
+     * Return the limits for this instance or an empty array if none.
+     *
+     * @param string|null $key     A key within the limits to retrieve. If omitted, all limits are returned
+     * @param array       $default The default value to return if $key was not found
+     *
+     * @return array|null
+     */
+    public function getLimits($key = null, $default = [])
+    {
+        return $this->getConfig((null === $key) ? 'limits' : 'limits.' . $key, $default);
+    }
 }

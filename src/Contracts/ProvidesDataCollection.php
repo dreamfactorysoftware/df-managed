@@ -17,5 +17,5 @@ interface ProvidesDataCollection
      *
      * @return bool
      */
-    public function logRequest(ProvidesManagedConfig $manager, Request $request, $sessionData = []);
+    public function logRequest(Request $request, $sessionData = []);
 }

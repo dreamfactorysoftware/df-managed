@@ -1,7 +1,7 @@
 <?php namespace DreamFactory\Managed\Providers;
 
+use DreamFactory\Library\Utility\Providers\BaseServiceProvider;
 use DreamFactory\Managed\Services\AuditingService;
-use Illuminate\Support\ServiceProvider;
 
 /**
  * Register the auditing service as a provider with Laravel.
@@ -16,7 +16,7 @@ use Illuminate\Support\ServiceProvider;
  *
  *  ),
  */
-class AuditServiceProvider extends ServiceProvider
+class AuditServiceProvider extends BaseServiceProvider
 {
     //******************************************************************************
     //* Constants

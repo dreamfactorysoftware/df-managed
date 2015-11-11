@@ -5,10 +5,12 @@ use DreamFactory\Core\Exceptions\InternalServerErrorException;
 use DreamFactory\Core\Exceptions\TooManyRequestsException;
 use DreamFactory\Core\Utility\ResponseFactory;
 use DreamFactory\Core\Utility\Session;
-use DreamFactory\Managed\Facades\Managed;
+use DreamFactory\Library\Utility\Enums\DateTimeIntervals;
+use DreamFactory\Managed\Providers\ClusterServiceProvider;
+use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Support\Facades\Cache;
 
-class Limits
+class ImposeClusterLimits
 {
     //******************************************************************************
     //* Members
@@ -18,6 +20,16 @@ class Limits
      * @type bool
      */
     protected $testing = false;
+    /**
+     * @type array The available periods
+     */
+    protected $periods = [
+        'minute' => DateTimeIntervals::SECONDS_PER_MINUTE,
+        'hour'   => DateTimeIntervals::SECONDS_PER_HOUR,
+        'day'    => DateTimeIntervals::SECONDS_PER_DAY,
+        '7-day'  => DateTimeIntervals::SECONDS_PER_DAY * 7,
+        '30-day' => DateTimeIntervals::SECONDS_PER_DAY * 30,
+    ];
 
     //******************************************************************************
     //* Methods
@@ -33,28 +45,23 @@ class Limits
      */
     public function handle($request, Closure $next)
     {
-        static $timePeriods = [
-            'minute' => 60,
-            'hour'   => 3600,
-            'day'    => 86400,
-            '7-day'  => 86400 * 7,
-            '30-day' => 86400 * 30,
-        ];
+        /** @type ClusterService $_cluster */
+        $_cluster = ClusterServiceProvider::service();
 
         //  Get limits or bail
-        if (empty($limits = Managed::getLimits()) || !is_array($limits)) {
+        if (empty($limits = $_cluster->getLimits()) || !is_array($limits)) {
             return $next($request);
         }
 
         //  Convert to an array
         $limits = json_decode(json_encode($limits), true);
-        $this->testing = config('api_limits_test', false);
+        $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
         if (!empty($limits) && null !== ($serviceName = $this->getServiceName())) {
             $userName = $this->getUser(Session::getCurrentUserId());
             $userRole = $this->getRole(Session::getRoleId());
             $apiName = $this->getApiKey(Session::getApiKey());
-            $clusterName = Managed::getClusterName();
+            $clusterName = $_cluster->getClusterId();
 
             //  Build the list of API Hits to check
             $apiKeysToCheck = ['cluster.default' => 0, 'instance.default' => 0];
@@ -90,7 +97,7 @@ class Limits
 
             try {
                 foreach (array_keys(array_merge($apiKeysToCheck, $serviceKeys)) as $key) {
-                    foreach ($timePeriods as $period => $minutes) {
+                    foreach ($this->periods as $period => $minutes) {
                         $_checkKey = $key . '.' . $period;
 
                         /** @noinspection PhpUndefinedMethodInspection */
@@ -160,7 +167,7 @@ class Limits
             return 'service:serviceName';
         }
 
-        if (null === ($_service = app('router')->input('service'))) {
+        if (empty($_service = app('router')->input('service'))) {
             return null;
         }
 

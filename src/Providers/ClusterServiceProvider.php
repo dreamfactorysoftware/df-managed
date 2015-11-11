@@ -1,13 +1,12 @@
 <?php namespace DreamFactory\Managed\Providers;
 
+use DreamFactory\Library\Utility\Providers\BaseServiceProvider;
 use DreamFactory\Managed\Services\ClusterService;
-use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Support\ServiceProvider;
 
 /**
  * Register the virtual config manager service as a Laravel provider
  */
-class ClusterServiceProvider extends ServiceProvider
+class ClusterServiceProvider extends BaseServiceProvider
 {
     //******************************************************************************
     //* Constants
@@ -29,15 +28,5 @@ class ClusterServiceProvider extends ServiceProvider
             function ($app){
                 return new ClusterService($app);
             });
-    }
-
-    /**
-     * @param \Illuminate\Contracts\Foundation\Application $app
-     *
-     * @return \DreamFactory\Managed\Services\ClusterService
-     */
-    public static function service(Application $app)
-    {
-        return $app ? $app[static::IOC_NAME] : null;
     }
 }

@@ -20,7 +20,7 @@ class ManagedInstance
         }
 
         $app->register(new ClusterServiceProvider($app));
-        $_cluster = ClusterServiceProvider::service($app);
+        $_cluster = ClusterServiceProvider::service();
 
         $_vars = [
             'DF_CACHE_PREFIX'         => $_cluster->getCachePrefix(),
