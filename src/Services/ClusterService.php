@@ -131,7 +131,6 @@ class ClusterService implements ProvidesManagedConfig
 
         return Disk::path([
             $this->getCacheRoot(),
-            'cluster',
             substr($_host, 0, 2),
             substr($_host, 2, 2),
             $_host,
@@ -167,7 +166,7 @@ class ClusterService implements ProvidesManagedConfig
     /** Returns cache root */
     public function getCacheRoot()
     {
-        return env('DF_MANAGED_CACHE_PATH', Disk::path([sys_get_temp_dir(), '.df-cache']));
+        return env('DF_MANAGED_CACHE_PATH', Disk::path([sys_get_temp_dir(), '.df-cache', '.cluster']));
     }
 
     /**
@@ -406,7 +405,7 @@ class ClusterService implements ProvidesManagedConfig
     protected function loadCachedValues()
     {
         $_cached = null;
-        $_cachePath = Disk::path($this->getCachePath(), true, 2775);
+        $_cachePath = Disk::path($this->getCachePath(), true, 0775);
         $_cacheFile = $_cachePath . DIRECTORY_SEPARATOR . $this->getCacheKey();
 
         if (file_exists($_cacheFile)) {
@@ -439,7 +438,7 @@ class ClusterService implements ProvidesManagedConfig
      */
     protected function freshenCache()
     {
-        $_cacheFile = Disk::path($this->getCachePath(), true, 2775) . DIRECTORY_SEPARATOR . $this->getCacheKey();
+        $_cacheFile = Disk::path($this->getCachePath(), true, 0775) . DIRECTORY_SEPARATOR . $this->getCacheKey();
         $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
 
         return JsonFile::encodeFile($_cacheFile, $this->config);
