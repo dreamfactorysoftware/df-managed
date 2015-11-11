@@ -1,104 +1,142 @@
 <?php namespace DreamFactory\Managed\Services;
 
-use DreamFactory\Managed\Components\GelfMessage;
+use DreamFactory\Managed\Contracts\ProvidesDataCollection;
 use DreamFactory\Managed\Enums\AuditLevels;
 use DreamFactory\Managed\Enums\ManagedDefaults;
+use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use DreamFactory\Managed\Support\GelfLogger;
-use Illuminate\Foundation\Application;
+use DreamFactory\Managed\Support\GelfMessage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Session;
 
 /**
  * Contains auditing methods for DFE
  */
-class AuditingService
+class AuditingService implements ProvidesDataCollection
 {
     //******************************************************************************
     //* Constants
     //******************************************************************************
 
     /**
-     * @type string
+     * @type string The first part of the short message
      */
-    const DEFAULT_FACILITY = 'dreamfactory-enterprise';
+    const MESSAGE_TAG = 'DFE Audit';
 
     //******************************************************************************
     //* Members
     //******************************************************************************
 
     /**
-     * @type GelfLogger
+     * @type GelfLogger The output logger
      */
     protected $gelfLogger = null;
     /**
-     * @type array
+     * @type array Raw metadata used as default when none specified with message
      */
     protected $metadata;
-    /**
-     * @type Application
-     */
-    protected $app;
 
     //********************************************************************************
     //* Public Methods
     //********************************************************************************
 
     /**
-     * boot up
-     *
-     * @param Application $app
-     * @param GelfLogger  $logger
-     */
-    public function __construct($app, GelfLogger $logger = null)
-    {
-        $this->app = $app;
-
-        $this->setLogger($logger);
-    }
-
-    /**
      * @param string $host
+     * @param int    $port
+     *
+     * @return $this
      */
-    public function setHost($host = GelfLogger::DEFAULT_HOST)
+    public function setHost($host = GelfLogger::DEFAULT_HOST, $port = GelfLogger::DEFAULT_PORT)
     {
         $this->getLogger()->setHost($host);
+        $this->setPort($port);
+
+        return $this;
     }
 
     /**
      * @param int $port
+     *
+     * @return $this
      */
     public function setPort($port = GelfLogger::DEFAULT_PORT)
     {
         $this->getLogger()->setPort($port);
+
+        return $this;
+    }
+
+    /**
+     * Logs an API request
+     *
+     * @param \DreamFactory\Managed\Contracts\ProvidesManagedConfig $manager     Our managed instance
+     * @param \Illuminate\Http\Request                              $request     The request
+     * @param array                                                 $sessionData User session data, if any
+     *
+     * @return bool
+     */
+    public function logRequest(Request $request, $sessionData = [])
+    {
+        try {
+            //  Get some session data if none given, then remove any unmentionables...
+            /** @noinspection PhpUndefinedMethodInspection */
+            (empty($sessionData) || !is_array($sessionData)) && $sessionData = Session::all();
+            array_forget($sessionData, ['_token', 'token', 'api_key', 'session_token', 'metadata']);
+
+            $_cluster = ClusterServiceProvider::service();
+
+            //  Add in stuff for API request logging
+            $this->log([
+                'dfe'  => $this->prepareMetadata($_cluster->getInstanceName(),
+                    $request,
+                    $_cluster->getConfig('audit', [])),
+                'user' => $sessionData,
+            ],
+                AuditLevels::INFO,
+                $request,
+                $_cluster->getClusterId());
+        } catch (\Exception $_ex) {
+            //  Completely ignore any issues
+        }
     }
 
     /**
      * Logs API requests to logging system
      *
-     * @param string  $instanceId  The id of the sending instance
-     * @param Request $request     The request
-     * @param array   $sessionData Any session data to log
-     * @param int     $level       The level, defaults to INFO
-     * @param string  $facility    The facility, used for sorting
+     * @param array      $data    The data to log
+     * @param int|string $level   The level, defaults to INFO
+     * @param Request    $request The request, if available
+     * @param string     $type    Optional type -- DFE fills with the source "cluster-id"
      *
      * @return bool
      */
-    public function logRequest($instanceId, Request $request, $sessionData = [], $level = AuditLevels::INFO, $facility = self::DEFAULT_FACILITY)
+    protected function log($data = [], $level = AuditLevels::INFO, $request = null, $type = null)
     {
         try {
-            $_metadata = array_get($sessionData, 'metadata', []);
-            array_forget($sessionData, 'metadata');
+            $_request = $request ?: Request::createFromGlobals();
+            $_data = array_merge($this->buildBasicEntry($_request), $data);
+            $type && $_data['type'] = $type;
 
-            //  Add in stuff for API request logging
-            static::log([
-                'facility' => $facility,
-                'dfe'      => $this->prepareMetadata($instanceId, $request, $_metadata),
-                'user'     => $sessionData,
-            ],
+            $_message = GelfMessage::make($_data,
                 $level,
-                $request);
+                $_request->getMethod() . ' ' . $_request->getRequestUri(),
+                implode(' | ',
+                    [
+                        static::MESSAGE_TAG,
+                        implode(', ', $_data['source_ip']),
+                        date('Y-m-d H-i-s', $_data['request_timestamp']),
+                    ]));
+
+            $_result = $this->getLogger()->send($_message);
         } catch (\Exception $_ex) {
             //  Completely ignore any issues
+            $_result = false;
         }
+
+        logger('audit ' .
+            ($_result ? 'success' : 'failure') .
+            ': ' .
+            (isset($_message) ? $_message->toJson() : 'no message made'));
     }
 
     /**
@@ -110,54 +148,20 @@ class AuditingService
      */
     protected function prepareMetadata($instanceId, Request $request, array $metadata = [])
     {
-        return $this->metadata
-            ?: [
-                'instance_id'       => $instanceId,
-                'instance_owner_id' => array_get($metadata, 'owner-email-address'),
-                'cluster_id'        => array_get($metadata, 'cluster-id', $request->server->get('DFE_CLUSTER_ID')),
-                'app_server_id'     => array_get($metadata,
-                    'app-server-id',
-                    $request->server->get('DFE_APP_SERVER_ID')),
-                'db_server_id'      => array_get($metadata, 'db-server-id', $request->server->get('DFE_DB_SERVER_ID')),
-                'web_server_id'     => array_get($metadata,
-                    'web-server-id',
-                    $request->server->get('DFE_WEB_SERVER_ID')),
-            ];
-    }
+        $metadata = empty($metadata) ? $this->metadata : $metadata;
 
-    /**
-     * Logs API requests to logging system
-     *
-     * @param array      $data    The data to log
-     * @param int|string $level   The level, defaults to INFO
-     * @param Request    $request The request, if available
-     * @param string     $type    Optional type
-     *
-     * @return bool
-     */
-    public function log($data = [], $level = AuditLevels::INFO, $request = null, $type = null)
-    {
-        try {
-            $_request = $request ?: Request::createFromGlobals();
-            $_data = array_merge(static::_buildBasicEntry($_request), $data);
-            $type && $_data['type'] = $type;
-
-            $_message = new GelfMessage($_data);
-            $_message->setLevel($level);
-            $_message->setShortMessage($_request->getMethod() . ' ' . $_request->getRequestUri());
-            $_message->setFullMessage('DFE Audit | ' . implode(', ',
-                    $_data['source_ip']) . ' | ' . $_data['request_timestamp']);
-
-            $_result = $this->getLogger()->send($_message);
-
-            logger('audit ' .
-                ($_result ? 'success' : 'failure') .
-                ': ' .
-                json_encode($_message->toArray(), JSON_UNESCAPED_SLASHES));
-        } catch (\Exception $_ex) {
-            //  Completely ignore any issues
-            logger('audit send fail: ' . $_ex->getMessage());
-        }
+        return [
+            'instance_id'       => $instanceId,
+            'instance_owner_id' => array_get($metadata, 'owner-email-address'),
+            'cluster_id'        => array_get($metadata, 'cluster-id', $request->server->get('DFE_CLUSTER_ID')),
+            'app_server_id'     => array_get($metadata,
+                'app-server-id',
+                $request->server->get('DFE_APP_SERVER_ID')),
+            'db_server_id'      => array_get($metadata, 'db-server-id', $request->server->get('DFE_DB_SERVER_ID')),
+            'web_server_id'     => array_get($metadata,
+                'web-server-id',
+                $request->server->get('DFE_WEB_SERVER_ID')),
+        ];
     }
 
     /**
@@ -165,22 +169,21 @@ class AuditingService
      *
      * @return array
      */
-    protected function _buildBasicEntry($request)
+    protected function buildBasicEntry($request)
     {
         return [
-            'request_timestamp' => (double)$request->server->get('REQUEST_TIME_FLOAT', microtime(true)),
-            'user_agent'        => $request->headers->get('user-agent', 'None'),
-            'source_ip'         => $request->getClientIps(),
+            'api_key'           => $request->query->get('api_key', $request->headers->get(ManagedDefaults::DF_API_KEY)),
             'content_type'      => $request->getContentType(),
             'content_length'    => (int)$request->headers->get('Content-Length', 0),
-            'api_key'           => $request->query->get('api_key',
-                $request->headers->get(ManagedDefaults::DF_API_KEY)),
             'dfe'               => [],
             'host'              => $request->getHost(),
             'method'            => $request->getMethod(),
             'path_info'         => $request->getPathInfo(),
             'path_translated'   => $request->server->get('PATH_TRANSLATED'),
             'query'             => $request->query->all() ?: [],
+            'request_timestamp' => (double)$request->server->get('REQUEST_TIME_FLOAT', microtime(true)),
+            'source_ip'         => $request->getClientIps(),
+            'user_agent'        => $request->headers->get('user-agent', 'None'),
         ];
     }
 
@@ -189,7 +192,7 @@ class AuditingService
      */
     public function getLogger()
     {
-        return $this->gelfLogger;
+        return $this->gelfLogger ?: $this->gelfLogger = new GelfLogger();
     }
 
     /**
@@ -201,23 +204,20 @@ class AuditingService
      */
     public function setLogger(GelfLogger $logger = null)
     {
-        $this->gelfLogger = $logger ?: new GelfLogger();
+        //  If none given, get a freshie from the getter
+        $this->gelfLogger = $logger ?: $this->getLogger();
 
         return $this;
     }
 
     /**
-     * @param array $metadata
+     * @param array $metadata An array of RAW meta data points
      *
      * @return $this
      */
     public function setMetadata(array $metadata)
     {
-        $this->metadata = [];
-
-        foreach ($metadata as $_key => $_value) {
-            $this->metadata[str_replace('-', '_', $_key)] = $_value;
-        }
+        $this->metadata = $metadata;
 
         return $this;
     }

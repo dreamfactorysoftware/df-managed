@@ -1,15 +1,13 @@
 <?php namespace DreamFactory\Managed\Contracts;
 
-interface ProvidesManagedDatabase
+interface ManagesInstances
 {
     //******************************************************************************
     //* Methods
     //******************************************************************************
 
     /**
-     * Returns the database configuration for an instance
-     *
-     * @return array
+     * @return boolean
      */
-    public function getDatabaseConfig();
+    public function isManaged();
 }

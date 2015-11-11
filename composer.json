@@ -4,9 +4,9 @@
   "homepage":    "https://www.dreamfactory.com/",
   "keywords":    [
     "dreamfactory",
-    "dsp",
     "enterprise",
-    "storage"
+    "manager",
+    "remote"
   ],
   "license":     [
     "Apache-2.0"
@@ -29,16 +29,14 @@
     "dreamfactory/php-utils": "1.1.*"
   },
   "require-dev": {
-    "laravel/laravel": "5.1.*",
-    "phpunit/phpunit": "@stable"
+    "laravel/laravel":      "5.1.*",
+    "phpunit/phpunit":      "@stable",
+    "dreamfactory/df-core": "0.1.*"
   },
   "autoload":    {
     "psr-4": {
       "DreamFactory\\Managed\\": "src/"
     }
-  },
-  "config":      {
-    "preferred-install": "dist"
   },
   "extra":       {
     "branch-alias": {
