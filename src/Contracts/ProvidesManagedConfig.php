@@ -30,4 +30,14 @@ interface ProvidesManagedConfig extends ProvidesManagedDatabase, ProvidesManaged
      * @return array|mixed
      */
     public function getConfig($key = null, $default = null);
+
+    /**
+     * Set a config value
+     *
+     * @param string $key
+     * @param mixed  $value
+     *
+     * @return ProvidesManagedConfig
+     */
+    public function setConfig($key, $value = null);
 }

@@ -6,11 +6,14 @@ use DreamFactory\Library\Utility\JsonFile;
 use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Exceptions\ManagedInstanceException;
+use DreamFactory\Managed\Support\ClusterManifest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 /**
  * A service that interacts with the DFE console
+ *
+ * NOTE: Environment variables take precedence to cluster manifest in some instances (i.e. getLogPath())
  */
 class ClusterService implements ProvidesManagedConfig
 {
@@ -64,13 +67,14 @@ class ClusterService implements ProvidesManagedConfig
             return false;
         }
 
-        //  Discover where I am
-        if (!$this->getClusterConfiguration()) {
-            throw new ManagedInstanceException('Invalid cluster configuration file.');
-        }
+        //  Get the manifest
+        $_manifest = new ClusterManifest($this);
+
+        //  Seed our config with the manifest
+        $this->config = $_manifest->toArray();
 
         try {
-            //  Discover our secret powers...
+            //  Now let's discover our secret powers...
             return $this->interrogateCluster();
         } catch (\Exception $_ex) {
             $this->reset();
@@ -81,156 +85,54 @@ class ClusterService implements ProvidesManagedConfig
         }
     }
 
-    /** @inheritdoc */
-    public function getInstanceName()
-    {
-        return $this->getConfig('instance-name');
-    }
-
-    /** @inheritdoc */
-    public function getClusterId()
-    {
-        return $this->getClusterEnvironment('cluster-id');
-    }
-
-    /** @inheritdoc */
-    public function getInstanceId()
-    {
-        return $this->getClusterEnvironment('instance-id');
-    }
-
-    /** @inheritdoc */
-    public function getLogPath()
-    {
-        return $this->getConfig('log-path', env('DF_MANAGED_LOG_PATH', Disk::path([sys_get_temp_dir(), '.df-log'])));
-    }
-
-    /** @inheritdoc */
-    public function getLogFile($name = null)
-    {
-        return Disk::path([
-            $this->getLogPath(),
-            ($name ?: 'dfe-' . $this->getHostName() . '.log'),
-        ]);
-    }
-
-    /** @inheritdoc */
-    public function getConfig($key = null, $default = null)
-    {
-        if (null === $key) {
-            return $this->config;
-        }
-
-        return array_get($this->config, $key, $default);
-    }
-
-    /** @inheritdoc */
-    public function getCachePath()
-    {
-        $_host = $this->getHostName(true);
-
-        return Disk::path([
-            $this->getCacheRoot(),
-            substr($_host, 0, 2),
-            substr($_host, 2, 2),
-            $_host,
-        ]);
-    }
-
-    /** @inheritdoc */
-    public function getDatabaseConfig()
-    {
-        return $this->getConfig('db');
-    }
-
     /**
-     * Return the Console API Key hash or null
-     *
-     * @return string|null
+     * Reload the cache
      */
-    public function getConsoleApiKey()
+    protected function loadCachedValues()
     {
-        return $this->getIdentifyingKey(true);
-    }
+        $_cached = null;
+        $_cacheFile = Disk::path([$this->getCachePath(true), $this->getCacheKey()]);
 
-    /**
-     * Returns the storage root path
-     *
-     * @return string
-     */
-    public function getStorageRoot()
-    {
-        return $this->getConfig('storage-root');
-    }
+        if (file_exists($_cacheFile)) {
+            $_cached = JsonFile::decodeFile($_cacheFile);
 
-    /** Returns cache root */
-    public function getCacheRoot()
-    {
-        return env('DF_MANAGED_CACHE_PATH', Disk::path([sys_get_temp_dir(), '.df-cache', '.cluster']));
-    }
-
-    /**
-     * @return string
-     */
-    public function getCachePrefix()
-    {
-        return $this->getIdentifyingKey();
-    }
-
-    /**
-     * @param string|array $key
-     * @param mixed|null   $value
-     *
-     * @return array
-     */
-    protected function setConfig($key, $value = null)
-    {
-        if (is_array($key)) {
-            foreach ($key as $_key => $_value) {
-                array_set($this->config, $_key, $_value);
+            if (isset($_cached, $_cached['.expires']) && $_cached['.expires'] < time()) {
+                $_cached = null;
             }
 
-            return $this->config;
+            array_forget($_cached, '.expires');
         }
 
-        return array_set($this->config, $key, $value);
-    }
-
-    /**
-     * @param string $key
-     * @param mixed  $default
-     *
-     * @return array|mixed
-     * @throws \DreamFactory\Managed\Exceptions\ManagedInstanceException
-     */
-    protected function getClusterConfiguration($key = null, $default = null)
-    {
-        $configFile = $this->locateClusterEnvironmentFile(ManagedDefaults::CLUSTER_MANIFEST_FILE);
-
-        if (!$configFile || !file_exists($configFile)) {
+        //  These must exist otherwise we need to phone home
+        if (empty($_cached) ||
+            !is_array($_cached) ||
+            !isset($_cached['paths'], $_cached['env'], $_cached['db'], $_cached['audit'])
+        ) {
             return false;
         }
 
-        try {
-            $this->config = JsonFile::decodeFile($configFile);
+        //  Cool, we got's what we needs's
+        $this->config = $_cached;
 
-            //  Empty, non-array, or bogus...
-            if (empty($this->config) || !is_array($this->config) || !$this->validateClusterConfig()) {
-                return false;
-            }
-        } catch (\Exception $_ex) {
-            throw new ManagedInstanceException('This instance is not configured properly for your system environment.',
-                $_ex->getCode(),
-                $_ex);
-        }
+        return true;
+    }
 
-        return null === $key ? $this->config : $this->getConfig($key, $default);
+    /**
+     * Refreshes the cache with fresh values
+     */
+    protected function freshenCache()
+    {
+        $_cacheFile = Disk::path($this->getCachePath(), true, 0775) . DIRECTORY_SEPARATOR . $this->getCacheKey();
+        $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
+
+        return JsonFile::encodeFile($_cacheFile, $this->config);
     }
 
     /**
      * Retrieves an instance's status and caches the shaped result
      *
      * @return array|bool
+     * @throws \DreamFactory\Managed\Exceptions\ManagedInstanceException
      */
     protected function interrogateCluster()
     {
@@ -254,9 +156,20 @@ class ClusterService implements ProvidesManagedConfig
                 Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        //  Validate domain of this host
+        $_host = $this->getHostName();
+
+        //  Ensure leading dot on default-domain
+        $_defaultDomain = $this->getConfig('default-domain');
+
+        //	If this isn't an enterprise instance, bail
+        if (false === strpos($_host, $_defaultDomain)) {
+            throw new ManagedInstanceException('Invalid "default-domain" for host "' . $_host . '"');
+        }
+
         //  Stuff all the unadulterated data into the config
         $_paths = (array)data_get($_status, 'response.metadata.paths', []);
-        $_paths['storage-root'] = $_storageRoot = $this->getConfig('storage-root', storage_path());
+        $_paths['storage-root'] = $_storageRoot = $this->getConfig('storage-root');
 
         //  Clean up the paths accordingly
         $_paths['log-path'] = Disk::segment([
@@ -276,6 +189,8 @@ class ClusterService implements ProvidesManagedConfig
             //  The storage map defines where exactly under $storageRoot the instance's storage resides
             'storage-map'   => (array)data_get($_status, 'response.metadata.storage-map', []),
             'home-links'    => (array)data_get($_status, 'response.home-links'),
+            'host-name'     => $_host,
+            'instance-name' => str_replace($_defaultDomain, null, $_host),
             'managed-links' => (array)data_get($_status, 'response.managed-links'),
             'env'           => (array)data_get($_status, 'response.metadata.env', []),
             'audit'         => (array)data_get($_status, 'response.metadata.audit', []),
@@ -289,59 +204,6 @@ class ClusterService implements ProvidesManagedConfig
         $this->freshenCache();
 
         return true;
-    }
-
-    /**
-     * Validates that the required values are in $this->config from .dfe.cluster.json
-     *
-     * @return bool
-     */
-    protected function validateClusterConfig()
-    {
-        try {
-            $_url = $this->getConfig('console-api-url');
-
-            //  Can we build the API url
-            if (empty($_url) || !$this->getConfig('console-api-key')) {
-                throw new ManagedInstanceException('Invalid configuration: No "console-api-url" or "console-api-key" in cluster manifest.');
-            }
-
-            //  Ensure trailing slash on console-api-url
-            $this->setConfig('console-api-url', rtrim($_url, '/ ') . '/');
-
-            //  And default domain
-            $_host = $this->getHostName();
-
-            //  Ensure leading dot on default-domain
-            if (!empty($_defaultDomain = ltrim($this->getConfig('default-domain'), '. '))) {
-                $_defaultDomain = '.' . $_defaultDomain;
-
-                //	If this isn't an enterprise instance, bail
-                if (false === strpos($_host, $_defaultDomain)) {
-                    throw new ManagedInstanceException('Invalid "default-domain" for host "' . $_host . '"');
-                }
-
-                $this->setConfig('default-domain', $_defaultDomain);
-            }
-
-            //  Make sure we have a storage root
-            if (empty($storageRoot = $this->getConfig('storage-root'))) {
-                throw new ManagedInstanceException('No "storage-root" found.');
-            }
-
-            //  Set them cleanly into our config
-            $this->setConfig([
-                'storage-root'  => rtrim($storageRoot, ' ' . DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
-                'instance-name' => str_replace($_defaultDomain, null, $_host),
-                'host-name'     => $_host,
-            ]);
-
-            //  It's all good!
-            return true;
-        } catch (\Exception $_ex) {
-            //  The file is bogus or not there
-            return false;
-        }
     }
 
     /**
@@ -400,79 +262,6 @@ class ClusterService implements ProvidesManagedConfig
     }
 
     /**
-     * Reload the cache
-     */
-    protected function loadCachedValues()
-    {
-        $_cached = null;
-        $_cachePath = Disk::path($this->getCachePath(), true, 0775);
-        $_cacheFile = $_cachePath . DIRECTORY_SEPARATOR . $this->getCacheKey();
-
-        if (file_exists($_cacheFile)) {
-            $_cached = JsonFile::decodeFile($_cacheFile);
-            if (isset($_cached, $_cached['.expires']) && $_cached['.expires'] < time()) {
-                $_cached = null;
-            }
-
-            array_forget($_cached, '.expires');
-        }
-
-        //  Check the basics
-        if (empty($_cached) || !is_array($_cached) || !$this->validateClusterConfig()) {
-            return false;
-        }
-
-        //  Deeper check, these must exist otherwise we need to phone home
-        if (!isset($_cached['paths'], $_cached['env'], $_cached['db'], $_cached['audit'])) {
-            return false;
-        }
-
-        //  Cool, we got's what we needs's
-        $this->config = $_cached;
-
-        return true;
-    }
-
-    /**
-     * Refreshes the cache with fresh values
-     */
-    protected function freshenCache()
-    {
-        $_cacheFile = Disk::path($this->getCachePath(), true, 0775) . DIRECTORY_SEPARATOR . $this->getCacheKey();
-        $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
-
-        return JsonFile::encodeFile($_cacheFile, $this->config);
-    }
-
-    /**
-     * Locate the configuration file for DFE, if any
-     *
-     * @param string $file
-     *
-     * @return bool|string
-     */
-    protected function locateClusterEnvironmentFile($file)
-    {
-        $_path = isset($_SERVER, $_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : getcwd();
-
-        while (true) {
-            if (file_exists($_path . DIRECTORY_SEPARATOR . $file)) {
-                return $_path . DIRECTORY_SEPARATOR . $file;
-            }
-
-            $_parentPath = dirname($_path);
-
-            if ($_parentPath == $_path || empty($_parentPath) || $_parentPath == DIRECTORY_SEPARATOR) {
-                return false;
-            }
-
-            $_path = $_parentPath;
-        }
-
-        return false;
-    }
-
-    /**
      * Returns the 'env' portion of the cluster configuration
      *
      * @param string|array|null $key
@@ -519,16 +308,6 @@ class ClusterService implements ProvidesManagedConfig
     }
 
     /**
-     * Initialize defaults for a stand-alone instance and sets the cache key
-     *
-     * @param string|null $storagePath A storage path to use instead of storage_path()
-     */
-    protected function initializeDefaults($storagePath = null)
-    {
-        $this->reset();
-    }
-
-    /**
      * Clears out any settings from a prior managed thing
      *
      * @return bool
@@ -554,5 +333,131 @@ class ClusterService implements ProvidesManagedConfig
         $_key = implode($delimiter, [$this->getClusterId(), $this->getHostName(),]);
 
         return $hashed ? hash('sha1', $_key) : $_key;
+    }
+
+    /** @inheritdoc */
+    public function getInstanceName()
+    {
+        return $this->getConfig('instance-name');
+    }
+
+    /** @inheritdoc */
+    public function getClusterId()
+    {
+        return $this->getClusterEnvironment('cluster-id');
+    }
+
+    /** @inheritdoc */
+    public function getInstanceId()
+    {
+        return $this->getClusterEnvironment('instance-id');
+    }
+
+    /** @inheritdoc */
+    public function getLogPath()
+    {
+        return env('DF_MANAGED_LOG_PATH', $this->getConfig('log-path', Disk::path([sys_get_temp_dir(), '.df-log'])));
+    }
+
+    /** @inheritdoc */
+    public function getLogFile($name = null)
+    {
+        return Disk::path([
+            $this->getLogPath(),
+            ($name ?: 'dfe-' . $this->getHostName() . '.log'),
+        ]);
+    }
+
+    /** @inheritdoc */
+    public function getConfig($key = null, $default = null)
+    {
+        if (null === $key) {
+            return $this->config;
+        }
+
+        return array_get($this->config, $key, $default);
+    }
+
+    /**
+     * @param string|array $key
+     * @param mixed|null   $value
+     *
+     * @return array
+     */
+    public function setConfig($key, $value = null)
+    {
+        if (is_array($key)) {
+            foreach ($key as $_key => $_value) {
+                array_set($this->config, $_key, $_value);
+            }
+
+            return $this->config;
+        }
+
+        return array_set($this->config, $key, $value);
+    }
+
+    /**
+     * @param bool $create    If true, path will be created
+     * @param int  $mode      The mode if creating
+     * @param bool $recursive Create recursively?
+     *
+     * @return string A path (un-ensured!) which is unique to the instance-level
+     */
+    public function getCachePath($create = false, $mode = 0777, $recursive = true)
+    {
+        $_host = $this->getHostName(true);
+
+        // With a host hash of "0123456789", make a path like "/cache/root/01/23/0123456789/"
+        return Disk::path([
+            $this->getCacheRoot(),
+            substr($_host, 0, 2),
+            substr($_host, 2, 2),
+            $_host,
+        ],
+            $create,
+            $mode,
+            $recursive);
+    }
+
+    /** @inheritdoc */
+    public function getDatabaseConfig()
+    {
+        return $this->getConfig('db');
+    }
+
+    /**
+     * Return a hash used to communicate with the DFE console
+     *
+     * @return string|null
+     */
+    public function getConsoleApiKey()
+    {
+        return $this->getIdentifyingKey(true);
+    }
+
+    /**
+     * Returns the storage root path
+     *
+     * @return string
+     */
+    public function getStorageRoot()
+    {
+        return $this->getConfig('storage-root');
+    }
+
+    /** Returns cache root */
+    public function getCacheRoot()
+    {
+        return env('DF_MANAGED_CACHE_PATH',
+            $this->getConfig('cache-root', Disk::path([sys_get_temp_dir(), '.df-cache', '.cluster'])));
+    }
+
+    /**
+     * @return string
+     */
+    public function getCachePrefix()
+    {
+        return $this->getIdentifyingKey();
     }
 }

@@ -1,16 +1,16 @@
 <?php namespace Dreamfactory\Managed\Http\Middleware;
 
 use Closure;
-use DreamFactory\Managed\Facades\Managed;
+use DreamFactory\Managed\Facades\Audit;
 
-class DataCollection
+class RequestAuditor
 {
     //******************************************************************************
     //* Methods
     //******************************************************************************
 
     /**
-     * Handle an incoming request.
+     * Send a copy of each incoming request out to the cluster logging system
      *
      * @param  \Illuminate\Http\Request $request
      * @param  \Closure                 $next
@@ -20,7 +20,7 @@ class DataCollection
     public function handle($request, Closure $next)
     {
         try {
-            Managed::auditRequest($request);
+            Audit::auditRequest(app(), $request);
         } catch (\Exception $_ex) {
             //  Completely ignored...
         }
