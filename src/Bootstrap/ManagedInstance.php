@@ -24,6 +24,7 @@ class ManagedInstance
         $_vars = [
             'DF_CACHE_PREFIX' => $_cluster->getCachePrefix(),
             'DF_CACHE_PATH'   => $_cluster->getCachePath(),
+            'DF_MANAGED'      => true,
         ];
 
         //  Get the cluster database information
