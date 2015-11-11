@@ -7,11 +7,6 @@ interface ProvidesManagedConfig extends ProvidesManagedDatabase, ProvidesManaged
     //******************************************************************************
 
     /**
-     * @return boolean
-     */
-    public function isManaged();
-
-    /**
      * @return string
      */
     public function getInstanceName();
@@ -20,11 +15,6 @@ interface ProvidesManagedConfig extends ProvidesManagedDatabase, ProvidesManaged
      * @return string
      */
     public function getInstanceId();
-
-    /**
-     * @return string
-     */
-    public function getClusterName();
 
     /**
      * @return string

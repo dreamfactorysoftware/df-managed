@@ -15,7 +15,7 @@ class ManagedServiceProvider extends ServiceProvider
     /**
      * @type string The name of the service in the IoC
      */
-    const IOC_NAME = 'managed.config';
+    const IOC_NAME = 'df.manager';
     /**
      * @type string The key in database config that holds all connections.
      */
