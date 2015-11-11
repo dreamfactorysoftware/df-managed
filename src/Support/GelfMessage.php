@@ -1,6 +1,9 @@
-<?php namespace DreamFactory\Managed\Components;
+<?php namespace DreamFactory\Managed\Support;
 
 use DreamFactory\Managed\Enums\AuditLevels;
+use DreamFactory\Managed\Enums\GelfLevels;
+use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Contracts\Support\Jsonable;
 
 /**
  * A GELF v1.1 message
@@ -8,7 +11,7 @@ use DreamFactory\Managed\Enums\AuditLevels;
  *
  * @link http://www.graylog2.org/resources/gelf/specification
  */
-class GelfMessage
+class GelfMessage implements Arrayable, Jsonable
 {
     //******************************************************************************
     //* Constants
@@ -64,9 +67,25 @@ class GelfMessage
         $this->reset()->addAdditionalFields($additional);
     }
 
-    //**********************************************************************
-    //* Public Methods
-    //**********************************************************************
+    /**
+     * Creates an instance and fills with some stuff
+     *
+     * @param array       $contents The contents (additional fields) to add to the message
+     * @param int         $level    The level of the message
+     * @param string|null $short    An optional short message
+     * @param string|null $full     An optional full (i.e. not short) message
+     *
+     * @return static
+     */
+    public static function make($contents = [], $level = GelfLevels::INFO, $short = null, $full = null)
+    {
+        $_message = new static($contents);
+        $_message->setLevel($level);
+        $short && $_message->setShortMessage($short);
+        $full && $_message->setFullMessage($full);
+
+        return $_message;
+    }
 
     /**
      * Resets the message to default values
@@ -99,27 +118,6 @@ class GelfMessage
         $_file && ($this->additional['_file'] = $_file);
 
         return $this;
-    }
-
-    /**
-     * @return array
-     */
-    public function toArray()
-    {
-        $_message = [
-            'version'       => $this->version,
-            'host'          => $this->host,
-            'short_message' => $this->shortMessage,
-            'full_message'  => $this->fullMessage,
-            'timestamp'     => $this->timestamp,
-            'level'         => $this->level,
-        ];
-
-        if (!empty($this->additional)) {
-            $_message = array_merge($_message, $this->additional);
-        }
-
-        return $_message;
     }
 
     /**
@@ -262,5 +260,32 @@ class GelfMessage
         $this->level = $level;
 
         return $this;
+    }
+
+    /** @inheritdoc */
+    public function toJson($options = 0)
+    {
+        return json_encode($this->toArray(), $options);
+    }
+
+    /**
+     * @return array
+     */
+    public function toArray()
+    {
+        $_message = [
+            'version'       => $this->version,
+            'host'          => $this->host,
+            'short_message' => $this->shortMessage,
+            'full_message'  => $this->fullMessage,
+            'timestamp'     => $this->timestamp,
+            'level'         => $this->level,
+        ];
+
+        if (!empty($this->additional)) {
+            $_message = array_merge($_message, $this->additional);
+        }
+
+        return $_message;
     }
 }

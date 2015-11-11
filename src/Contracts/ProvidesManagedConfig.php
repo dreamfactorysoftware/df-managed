@@ -2,4 +2,42 @@
 
 interface ProvidesManagedConfig extends ProvidesManagedDatabase, ProvidesManagedLogs
 {
+    //******************************************************************************
+    //* Methods
+    //******************************************************************************
+
+    /**
+     * @return string
+     */
+    public function getInstanceName();
+
+    /**
+     * @return string
+     */
+    public function getInstanceId();
+
+    /**
+     * @return string
+     */
+    public function getClusterId();
+
+    /**
+     * Retrieve a config value or the entire array
+     *
+     * @param string $key
+     * @param mixed  $default
+     *
+     * @return array|mixed
+     */
+    public function getConfig($key = null, $default = null);
+
+    /**
+     * Set a config value
+     *
+     * @param string $key
+     * @param mixed  $value
+     *
+     * @return ProvidesManagedConfig
+     */
+    public function setConfig($key, $value = null);
 }

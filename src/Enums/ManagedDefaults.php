@@ -14,7 +14,7 @@ class ManagedDefaults extends FactoryEnum
     /**
      * @type int The number of minutes to hold managed configurations in cache
      */
-    const CONFIG_CACHE_TTL = 5;
+    const CONFIG_CACHE_TTL = 7;
     /**
      * @type string
      */
@@ -59,4 +59,8 @@ class ManagedDefaults extends FactoryEnum
      * @type string The name of the path under owner-private-path to contain snapshots
      */
     const SNAPSHOT_PATH_NAME = 'snapshots';
+    /**
+     * @type string The hash algorithm
+     */
+    const DEFAULT_ALGORITHM = self::DEFAULT_SIGNATURE_METHOD;
 }

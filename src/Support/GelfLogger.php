@@ -1,12 +1,11 @@
 <?php namespace DreamFactory\Managed\Support;
 
-use DreamFactory\Library\Utility\JsonFile;
-use DreamFactory\Managed\Components\GelfMessage;
 use DreamFactory\Managed\Enums\AuditLevels;
+use DreamFactory\Managed\Enums\ManagedDefaults;
 use Psr\Log\LoggerInterface;
 
 /**
- * Provides an interface to the elk cluster
+ * Simple GELF message sender
  */
 class GelfLogger implements LoggerInterface
 {
@@ -15,13 +14,13 @@ class GelfLogger implements LoggerInterface
     //**************************************************************************
 
     /**
-     * @var string ELK cluster
+     * @var string Logstash target of GELF messages
      */
-    const DEFAULT_HOST = 'lps-east-1.fabric.dreamfactory.com';
+    const DEFAULT_HOST = 'localhost';
     /**
-     * @const integer Port that graylog2 server listens on
+     * @const integer Port that logstash listens on
      */
-    const DEFAULT_PORT = 12201;
+    const DEFAULT_PORT = 12202;
     /**
      * @const integer Maximum message size before splitting into chunks
      */
@@ -38,11 +37,11 @@ class GelfLogger implements LoggerInterface
     /**
      * @type string The default log host
      */
-    static protected $_host = self::DEFAULT_HOST;
+    static protected $host = self::DEFAULT_HOST;
     /**
      * @type int
      */
-    static protected $_port = self::DEFAULT_PORT;
+    static protected $port = self::DEFAULT_PORT;
 
     //******************************************************************************
     //* Methods
@@ -60,9 +59,7 @@ class GelfLogger implements LoggerInterface
     public function log($level, $message, array $context = [])
     {
         $_message = new GelfMessage($context);
-
-        $_message->setLevel($level);
-        $_message->setFullMessage($message);
+        $_message->setLevel($level)->setFullMessage($message);
 
         return $this->send($_message);
     }
@@ -189,17 +186,22 @@ class GelfLogger implements LoggerInterface
      */
     public function send(GelfMessage $message)
     {
-        if (false === ($_chunks = $this->_prepareMessage($message))) {
-            return false;
-        }
-
-        $_url = 'udp://' . static::$_host . ':' . static::$_port;
-        $_sock = stream_socket_client($_url);
-
-        foreach ($_chunks as $_chunk) {
-            if (!fwrite($_sock, $_chunk)) {
+        try {
+            if (false === ($_chunks = $this->prepareMessage($message))) {
                 return false;
             }
+
+            $_url = 'udp://' . static::$host . ':' . static::$port;
+            $_sock = stream_socket_client($_url);
+
+            foreach ($_chunks as $_chunk) {
+                if (!fwrite($_sock, $_chunk)) {
+                    return false;
+                }
+            }
+        } catch (\Exception $_ex) {
+            //  Failure is not an option
+            return false;
         }
 
         return true;
@@ -212,20 +214,23 @@ class GelfLogger implements LoggerInterface
      *
      * @return array
      */
-    protected function _prepareMessage(GelfMessage $message)
+    protected function prepareMessage(GelfMessage $message)
     {
-        $_json = JsonFile::encode($message->toArray());
+        try {
+            if (false === ($_gzJson = gzcompress($message->toJson()))) {
+                return false;
+            }
 
-        if (false === ($_gzJson = gzcompress($_json))) {
+            //  If we are less than the max chunk size, we're done
+            if (strlen($_gzJson) <= static::MAX_CHUNK_SIZE) {
+                return [$_gzJson];
+            }
+        } catch (\Exception $_ex) {
+            //  Eschew failure
             return false;
         }
 
-        //  If we are less than the max chunk size, we're done
-        if (strlen($_gzJson) <= static::MAX_CHUNK_SIZE) {
-            return [$_gzJson];
-        }
-
-        return $this->_prepareChunks(str_split($_gzJson, static::MAX_CHUNK_SIZE));
+        return $this->prepareChunks(str_split($_gzJson, static::MAX_CHUNK_SIZE));
     }
 
     /**
@@ -236,24 +241,29 @@ class GelfLogger implements LoggerInterface
      *
      * @return string[] An array of packed chunks ready to send
      */
-    protected function _prepareChunks($chunks, $msgId = null)
+    protected function prepareChunks($chunks, $msgId = null)
     {
-        $msgId = $msgId ?: hash('sha256', microtime(true) . rand(10000, 99999), true);
+        try {
+            $msgId = $msgId ?: hash(ManagedDefaults::DEFAULT_ALGORITHM, microtime(true) . rand(10000, 99999), true);
 
-        $_sequence = 0;
-        $_count = count($chunks);
+            $_sequence = 0;
+            $_count = count($chunks);
 
-        if ($_count > static::MAX_CHUNKS_ALLOWED) {
+            if ($_count > static::MAX_CHUNKS_ALLOWED) {
+                return false;
+            }
+
+            $_prepared = [];
+
+            foreach ($chunks as $_chunk) {
+                $_prepared[] = pack('CC', 30, 15) . $msgId . pack('nn', $_sequence++, $_count) . $_chunk;
+            }
+
+            return $_prepared;
+        } catch (\Exception $_ex) {
+            //  Failure is not an option
             return false;
         }
-
-        $_prepared = [];
-
-        foreach ($chunks as $_chunk) {
-            $_prepared[] = pack('CC', 30, 15) . $msgId . pack('nn', $_sequence++, $_count) . $_chunk;
-        }
-
-        return $_prepared;
     }
 
     /**
@@ -261,7 +271,7 @@ class GelfLogger implements LoggerInterface
      */
     public static function getHost()
     {
-        return static::$_host;
+        return static::$host;
     }
 
     /**
@@ -269,7 +279,7 @@ class GelfLogger implements LoggerInterface
      */
     public static function setHost($host)
     {
-        static::$_host = $host;
+        static::$host = $host;
     }
 
     /**
@@ -277,7 +287,7 @@ class GelfLogger implements LoggerInterface
      */
     public static function getPort()
     {
-        return static::$_port;
+        return static::$port;
     }
 
     /**
@@ -285,6 +295,6 @@ class GelfLogger implements LoggerInterface
      */
     public static function setPort($port)
     {
-        static::$_port = $port;
+        static::$port = $port;
     }
 }
