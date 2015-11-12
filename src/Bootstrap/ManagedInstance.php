@@ -15,7 +15,7 @@ class ManagedInstance
      */
     public function bootstrap(Application $app)
     {
-        if ('managed' != $app->environment()) {
+        if (!env('DF_MANAGED', false)) {
             return;
         }
 
@@ -27,7 +27,6 @@ class ManagedInstance
             'DF_CACHE_PATH'           => $_cluster->getCachePath(),
             'DF_MANAGED_SESSION_PATH' => Disk::path([$_cluster->getCacheRoot(), '.sessions'], true),
             'DF_MANAGED_LOG_FILE'     => $_cluster->getHostName() . '.log',
-            'DF_MANAGED'              => true,
         ];
 
         //  Get the cluster database information

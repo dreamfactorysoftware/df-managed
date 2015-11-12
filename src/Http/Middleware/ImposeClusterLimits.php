@@ -46,7 +46,7 @@ class ImposeClusterLimits
      */
     public function handle($request, Closure $next)
     {
-        logger('[middleware] ImposeClusterLimits');
+        //logger('[middleware] ImposeClusterLimits');
 
         /** @type ClusterService $_cluster */
         $_cluster = ClusterServiceProvider::service();
