@@ -1,8 +1,9 @@
-<?php namespace Dreamfactory\Managed\Http\Middleware;
+<?php namespace DreamFactory\Managed\Http\Middleware;
 
 use Closure;
 use DreamFactory\Core\Utility\Session;
-use DreamFactory\Managed\Facades\Audit;
+use DreamFactory\Managed\Providers\AuditServiceProvider;
+use Illuminate\Support\Facades\Log;
 
 class ClusterAuditor
 {
@@ -20,6 +21,8 @@ class ClusterAuditor
      */
     public function handle($request, Closure $next)
     {
+        logger('[middleware] ClusterAuditor');
+
         try {
             try {
                 $_session = Session::getPublicInfo();
@@ -27,9 +30,12 @@ class ClusterAuditor
                 $_session = Session::all();
             }
 
-            Audit::auditRequest($request, $_session);
+            app()->register(AuditServiceProvider::class);
+            AuditServiceProvider::service()->logRequest($request, $_session);
         } catch (\Exception $_ex) {
             //  Completely ignored...
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('Exception during auditing: ' . $_ex->getMessage());
         }
 
         return $next($request);

@@ -172,14 +172,22 @@ class ClusterService implements ProvidesManagedConfig
         $_paths['storage-root'] = $_storageRoot = $this->getConfig('storage-root');
 
         //  Clean up the paths accordingly
-        $_paths['log-path'] = Disk::segment([
+        $_paths['log-path'] = env('DF_MANAGED_LOG_PATH',
+            Disk::segment([
+                $_storageRoot,
+                array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
+                ManagedDefaults::PRIVATE_LOG_PATH_NAME,
+            ],
+                false));
+
+        $_paths['private-log-path'] = Disk::segment([
             array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
             ManagedDefaults::PRIVATE_LOG_PATH_NAME,
         ],
             false);
 
         //  Prepend real base directory to all collected paths and cache statically
-        foreach (array_except($_paths, ['storage-root', 'storage-map']) as $_key => $_path) {
+        foreach (array_except($_paths, ['log-path', 'trash-path', 'storage-root', 'storage-map']) as $_key => $_path) {
             $_paths[$_key] = Disk::path([$_storageRoot, $_path], true, 0777, true);
         }
 
