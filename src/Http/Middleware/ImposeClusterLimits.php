@@ -1,4 +1,4 @@
-<?php namespace Dreamfactory\Managed\Http\Middleware;
+<?php namespace DreamFactory\Managed\Http\Middleware;
 
 use Closure;
 use DreamFactory\Core\Exceptions\InternalServerErrorException;
@@ -8,6 +8,7 @@ use DreamFactory\Core\Utility\Session;
 use DreamFactory\Library\Utility\Enums\DateTimeIntervals;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use DreamFactory\Managed\Services\ClusterService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class ImposeClusterLimits
@@ -27,8 +28,8 @@ class ImposeClusterLimits
         'minute' => DateTimeIntervals::SECONDS_PER_MINUTE,
         'hour'   => DateTimeIntervals::SECONDS_PER_HOUR,
         'day'    => DateTimeIntervals::SECONDS_PER_DAY,
-        '7-day'  => DateTimeIntervals::SECONDS_PER_DAY * 7,
-        '30-day' => DateTimeIntervals::SECONDS_PER_DAY * 30,
+        '7-day'  => 604800,
+        '30-day' => 2592000,
     ];
 
     //******************************************************************************
@@ -45,6 +46,8 @@ class ImposeClusterLimits
      */
     public function handle($request, Closure $next)
     {
+        logger('[middleware] ImposeClusterLimits');
+
         /** @type ClusterService $_cluster */
         $_cluster = ClusterServiceProvider::service();
 
@@ -57,7 +60,7 @@ class ImposeClusterLimits
         $limits = json_decode(json_encode($limits), true);
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
-        if (!empty($limits) && null !== ($serviceName = $this->getServiceName())) {
+        if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
             $userName = $this->getUser(Session::getCurrentUserId());
             $userRole = $this->getRole(Session::getRoleId());
             $apiName = $this->getApiKey(Session::getApiKey());
@@ -159,19 +162,13 @@ class ImposeClusterLimits
     /**
      * Return the service name.  May return null if a list of services has been requested
      *
+     * @param Request $request
+     *
      * @return null|string
      */
-    protected function getServiceName()
+    protected function getServiceName(Request $request)
     {
-        if ($this->testing) {
-            return 'service:serviceName';
-        }
-
-        if (empty($_service = app('router')->input('service'))) {
-            return null;
-        }
-
-        return 'service:' . $_service;
+        return $this->makeKey('service', 'serviceName', $request->input('service'));
     }
 
     /**

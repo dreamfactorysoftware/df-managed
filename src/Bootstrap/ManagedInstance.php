@@ -26,6 +26,7 @@ class ManagedInstance
             'DF_CACHE_PREFIX'         => $_cluster->getCachePrefix(),
             'DF_CACHE_PATH'           => $_cluster->getCachePath(),
             'DF_MANAGED_SESSION_PATH' => Disk::path([$_cluster->getCacheRoot(), '.sessions'], true),
+            'DF_MANAGED_LOG_FILE'     => $_cluster->getHostName() . '.log',
             'DF_MANAGED'              => true,
         ];
 
@@ -47,5 +48,10 @@ class ManagedInstance
             $_ENV[$_key] = $_value;
             $_SERVER[$_key] = $_value;
         }
+
+        //  Finally, push our middleware onto the stack
+        $app->make('Illuminate\Contracts\Http\Kernel')
+            ->pushMiddleware('DreamFactory\Managed\Http\Middleware\ImposeClusterLimits')
+            ->pushMiddleware('DreamFactory\Managed\Http\Middleware\ClusterAuditor');
     }
 }
