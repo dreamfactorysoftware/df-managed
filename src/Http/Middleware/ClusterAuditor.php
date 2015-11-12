@@ -21,7 +21,7 @@ class ClusterAuditor
      */
     public function handle($request, Closure $next)
     {
-        logger('[middleware] ClusterAuditor');
+        //logger('[middleware] ClusterAuditor');
 
         try {
             try {
