@@ -100,10 +100,15 @@ class ClusterManifest extends Collection
         //  Ensure trailing slash on console-api-url
         array_set($manifest, 'console-api-url', rtrim($_url, '/ ') . '/');
 
-        //  Ensure leading dot on default-domain
-        if (!empty($_defaultDomain = ltrim(array_get($manifest, 'default-domain'), '. '))) {
-            $this->cluster->setConfig('default-domain', '.' . $_defaultDomain);
+        //  Ensure all dots are gone from default-domain
+        if (!empty($_defaultDomain = trim(array_get($manifest, 'default-domain'), '. '))) {
+            $_defaultDomain = '.' . $_defaultDomain;
+            array_set($manifest, 'default-domain', $_defaultDomain);
         }
+
+        array_set($manifest,
+            'instance-name',
+            str_replace($_defaultDomain, null, $_host = $this->cluster->getHostName()));
 
         //  Make sure we have a storage root
         if (empty($storageRoot = array_get($manifest, 'storage-root'))) {

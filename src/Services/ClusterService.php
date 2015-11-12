@@ -287,7 +287,7 @@ class ClusterService implements ProvidesManagedConfig
      *
      * @return string
      */
-    protected function getHostName($hashed = false)
+    public function getHostName($hashed = false)
     {
         $_host =
             $this->getConfig('host-name',
