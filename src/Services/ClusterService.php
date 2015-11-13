@@ -435,13 +435,11 @@ class ClusterService implements ProvidesManagedConfig
     }
 
     /**
-     * Return a hash used to communicate with the DFE console
-     *
-     * @return string|null
+     * @return string
      */
-    public function getConsoleApiKey()
+    public function getConsoleKey()
     {
-        return $this->getIdentifyingKey(true);
+        return hash(ManagedDefaults::DEFAULT_ALGORITHM, $this->getClusterId() . $this->getInstanceId());
     }
 
     /**

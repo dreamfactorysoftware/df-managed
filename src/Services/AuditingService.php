@@ -133,10 +133,12 @@ class AuditingService implements ProvidesDataCollection
             $_result = false;
         }
 
-        logger('audit ' .
-            ($_result ? 'success' : 'failure') .
-            ': ' .
-            (isset($_message) ? $_message->toJson() : 'no message made'));
+        if (env('DF_MANAGED_ENABLE_AUDIT_LOGGING', false)) {
+            logger('audit ' .
+                ($_result ? 'success' : 'failure') .
+                ': ' .
+                (isset($_message) ? $_message->toJson() : 'no message made'));
+        }
     }
 
     /**
