@@ -48,7 +48,14 @@ class ManagedInstance
         }
 
         //  If this is a console request, denote it as such
-        $_vars['DF_CONSOLE_REQUEST'] = $_cluster->validateRequest();
+        $_vars['DF_CONSOLE_KEY'] = $_cluster->getConsoleKey();
+
+        //  Is it a console request? Validate
+        /** @type Request $_request */
+        $_request = $app->make('request');
+        $_vars['DF_IS_VALID_CONSOLE_REQUEST'] =
+            ($_vars['DF_CONSOLE_KEY'] ==
+                $_request->header(ManagedDefaults::CONSOLE_X_HEADER, $_request->query('console_key')));
 
         //  Now jam everything into the environment
         foreach ($_vars as $_key => $_value) {

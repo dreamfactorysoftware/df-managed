@@ -208,9 +208,6 @@ class ClusterService implements ProvidesManagedConfig
             'limits'        => (array)data_get($_status, 'response.metadata.limits', []),
         ]);
 
-        $this->setConfig('check-key',
-            hash(ManagedDefaults::DEFAULT_ALGORITHM, implode('.', [$this->getClusterId(), $this->getInstanceId()])));
-
         //  Freshen the cache...
         $this->freshenCache();
 
@@ -438,24 +435,11 @@ class ClusterService implements ProvidesManagedConfig
     }
 
     /**
-     * Checks to see if an inbound request is from our console
-     *
-     * @param Request $request
-     *
-     * @return bool
+     * @return string
      */
-    public function validateRequest(Request $request = null)
+    public function getConsoleKey()
     {
-        /** @type Request $request */
-        $request = $request ?: app('request') ?: Request::createFromGlobals();
-
-        if ($request) {
-            $_token = $request->query('console_key', $request->server(ManagedDefaults::CONSOLE_X_HEADER));
-
-            return $_token && $_token == $this->getConfig('check-key');
-        }
-
-        return false;
+        return hash(ManagedDefaults::DEFAULT_ALGORITHM, $this->getClusterId() . $this->getInstanceId());
     }
 
     /**
