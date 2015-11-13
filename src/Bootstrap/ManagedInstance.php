@@ -1,8 +1,11 @@
 <?php namespace DreamFactory\Managed\Bootstrap;
 
 use DreamFactory\Library\Utility\Disk;
+use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
+use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Http\Request;
 
 class ManagedInstance
 {
@@ -20,6 +23,7 @@ class ManagedInstance
         }
 
         $app->register(new ClusterServiceProvider($app));
+        /** @type ClusterService $_cluster */
         $_cluster = ClusterServiceProvider::service();
 
         $_vars = [
@@ -27,6 +31,8 @@ class ManagedInstance
             'DF_CACHE_PATH'           => $_cluster->getCachePath(),
             'DF_MANAGED_SESSION_PATH' => Disk::path([$_cluster->getCacheRoot(), '.sessions'], true),
             'DF_MANAGED_LOG_FILE'     => $_cluster->getHostName() . '.log',
+            'DF_MANAGED'              => true,
+            'DB_DRIVER'               => 'mysql',
         ];
 
         //  Get the cluster database information
@@ -41,6 +47,9 @@ class ManagedInstance
             }
         }
 
+        //  If this is a console request, denote it as such
+        $_vars['DF_CONSOLE_REQUEST'] = $_cluster->validateRequest();
+
         //  Now jam everything into the environment
         foreach ($_vars as $_key => $_value) {
             putenv($_key . '=' . $_value);
@@ -52,5 +61,22 @@ class ManagedInstance
         $app->make('Illuminate\Contracts\Http\Kernel')
             ->pushMiddleware('DreamFactory\Managed\Http\Middleware\ImposeClusterLimits')
             ->pushMiddleware('DreamFactory\Managed\Http\Middleware\ClusterAuditor');
+    }
+
+    /**
+     * @param Request $request
+     *
+     * @return mixed
+     */
+    public static function getConsoleApiKey($request)
+    {
+        //  Check for Console API key in request parameters.
+        $consoleApiKey = $request->query('console_key');
+        if (empty($consoleApiKey)) {
+            //Check for API key in request HEADER.
+            $consoleApiKey = $request->header(ManagedDefaults::CONSOLE_X_HEADER);
+        }
+
+        return $consoleApiKey;
     }
 }

@@ -208,6 +208,9 @@ class ClusterService implements ProvidesManagedConfig
             'limits'        => (array)data_get($_status, 'response.metadata.limits', []),
         ]);
 
+        $this->setConfig('check-key',
+            hash(ManagedDefaults::DEFAULT_ALGORITHM, implode('.', [$this->getClusterId(), $this->getInstanceId()])));
+
         //  Freshen the cache...
         $this->freshenCache();
 
@@ -435,13 +438,24 @@ class ClusterService implements ProvidesManagedConfig
     }
 
     /**
-     * Return a hash used to communicate with the DFE console
+     * Checks to see if an inbound request is from our console
      *
-     * @return string|null
+     * @param Request $request
+     *
+     * @return bool
      */
-    public function getConsoleApiKey()
+    public function validateRequest(Request $request = null)
     {
-        return $this->getIdentifyingKey(true);
+        /** @type Request $request */
+        $request = $request ?: app('request') ?: Request::createFromGlobals();
+
+        if ($request) {
+            $_token = $request->query('console_key', $request->server(ManagedDefaults::CONSOLE_X_HEADER));
+
+            return $_token && $_token == $this->getConfig('check-key');
+        }
+
+        return false;
     }
 
     /**
