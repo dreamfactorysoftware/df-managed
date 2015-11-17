@@ -16,6 +16,10 @@ class ManagedDefaults extends FactoryEnum
      */
     const CONFIG_CACHE_TTL = 7;
     /**
+     * @type int The number of minutes to hold managed services in cache
+     */
+    const SERVICE_CACHE_TTL = 7;
+    /**
      * @type string
      */
     const CONSOLE_X_HEADER = 'X-DreamFactory-Console-Key';

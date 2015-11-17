@@ -2,12 +2,12 @@
 
 use DreamFactory\Library\Utility\Providers\BaseServiceProvider;
 use DreamFactory\Managed\Enums\ManagedPlatforms;
-use DreamFactory\Managed\Services\ClusterService;
+use DreamFactory\Managed\Services\BluemixService;
 
 /**
- * Register the virtual config manager service as a Laravel provider
+ * Register the virtual db config manager as a Laravel provider
  */
-class ClusterServiceProvider extends BaseServiceProvider
+class BluemixServiceProvider extends BaseServiceProvider
 {
     //******************************************************************************
     //* Constants
@@ -16,7 +16,7 @@ class ClusterServiceProvider extends BaseServiceProvider
     /**
      * @type string The name of the service in the IoC
      */
-    const IOC_NAME = 'df.cluster';
+    const IOC_NAME = 'df.bluemix';
 
     //********************************************************************************
     //* Methods
@@ -27,7 +27,7 @@ class ClusterServiceProvider extends BaseServiceProvider
     {
         $this->app->singleton(static::IOC_NAME,
             function ($app){
-                return new ClusterService($app, ManagedPlatforms::DREAMFACTORY);
+                return new BluemixService($app, ManagedPlatforms::BLUEMIX);
             });
     }
 }

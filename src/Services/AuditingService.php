@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Session;
 /**
  * Contains auditing methods for DFE
  */
-class AuditingService implements ProvidesDataCollection
+class AuditingService extends BaseService implements ProvidesDataCollection
 {
     //******************************************************************************
     //* Constants
@@ -69,9 +69,8 @@ class AuditingService implements ProvidesDataCollection
     /**
      * Logs an API request
      *
-     * @param \DreamFactory\Managed\Contracts\ProvidesManagedConfig $manager     Our managed instance
-     * @param \Illuminate\Http\Request                              $request     The request
-     * @param array                                                 $sessionData User session data, if any
+     * @param \Illuminate\Http\Request $request     The request
+     * @param array                    $sessionData User session data, if any
      *
      * @return bool
      */

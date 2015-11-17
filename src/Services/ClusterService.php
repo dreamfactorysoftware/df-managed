@@ -3,10 +3,13 @@
 use DreamFactory\Library\Utility\Curl;
 use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Library\Utility\JsonFile;
+use DreamFactory\Managed\Contracts\HasMiddleware;
 use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
+use DreamFactory\Managed\Contracts\ProvidesManagedLimits;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Exceptions\ManagedInstanceException;
 use DreamFactory\Managed\Support\ClusterManifest;
+use Illuminate\Foundation\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -15,7 +18,7 @@ use Illuminate\Http\Response;
  *
  * NOTE: Environment variables take precedence to cluster manifest in some instances (i.e. getLogPath())
  */
-class ClusterService implements ProvidesManagedConfig
+class ClusterService extends BaseService implements ProvidesManagedConfig, ProvidesManagedLimits, HasMiddleware
 {
     //******************************************************************************
     //* Constants
@@ -35,10 +38,6 @@ class ClusterService implements ProvidesManagedConfig
      */
     protected $signature = null;
     /**
-     * @type string
-     */
-    protected $cacheKey = null;
-    /**
      * @type array The cluster configuration
      */
     protected $config = [];
@@ -46,14 +45,6 @@ class ClusterService implements ProvidesManagedConfig
     //******************************************************************************
     //* Methods
     //******************************************************************************
-
-    /**
-     * ClusterService constructor
-     */
-    public function __construct()
-    {
-        $this->boot();
-    }
 
     /**
      * Initialization for managed instances
@@ -297,9 +288,7 @@ class ClusterService implements ProvidesManagedConfig
      */
     public function getHostName($hashed = false)
     {
-        $_host =
-            $this->getConfig('host-name',
-                ((isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : gethostname()));
+        $_host = $this->getConfig('host-name', $this->getHttpHost());
 
         return $hashed ? hash('sha1', $_host) : $_host;
     }
@@ -311,8 +300,11 @@ class ClusterService implements ProvidesManagedConfig
      */
     protected function getCacheKey()
     {
-        return $this->cacheKey
-            ?: $this->cacheKey = hash('sha1', $this->getIdentifyingKey());
+        if (null === $this->cacheKey) {
+            $this->setCacheKey(hash('sha1', $this->getIdentifyingKey()));
+        }
+
+        return parent::getCacheKey();
     }
 
     /**
@@ -322,10 +314,10 @@ class ClusterService implements ProvidesManagedConfig
      */
     protected function reset()
     {
-        $this->cacheKey = $this->signature = null;
+        $this->signature = null;
         $this->config = [];
 
-        return false;
+        return parent::reset();
     }
 
     /**
@@ -478,5 +470,15 @@ class ClusterService implements ProvidesManagedConfig
     public function getLimits($key = null, $default = [])
     {
         return $this->getConfig((null === $key) ? 'limits' : 'limits.' . $key, $default);
+    }
+
+    /**
+     * @param Kernel $kernel
+     */
+    public function pushMiddleware(Kernel $kernel)
+    {
+        $kernel
+            ->pushMiddleware('DreamFactory\Managed\Http\Middleware\ImposeClusterLimits')
+            ->pushMiddleware('DreamFactory\Managed\Http\Middleware\ClusterAuditor');
     }
 }

@@ -1,15 +1,20 @@
-<?php namespace DreamFactory\Managed\Support;
+<?php namespace DreamFactory\Managed\Services;
 
 use DreamFactory\Library\Utility\Json;
+use DreamFactory\Managed\Contracts\ProvidesManagedDatabase;
 use DreamFactory\Managed\Enums\ManagedDefaults;
-use Illuminate\Support\Facades\Cache;
+use DreamFactory\Managed\Exceptions\ManagedEnvironmentException;
 
-/** Methods for interfacing with the Bluemix environment */
-final class Bluemix
+/**
+ * A service that interacts with bluemix
+ *
+ * NOTE: Environment variables take precedence to cluster manifest in some instances (i.e. getLogPath())
+ */
+class BluemixService extends BaseService implements ProvidesManagedDatabase
 {
-    //*************************************************************************
-    //	Constants
-    //*************************************************************************
+    //******************************************************************************
+    //* Constants
+    //******************************************************************************
 
     /**
      * @type string The environment variable that holds the credentials for the database
@@ -45,17 +50,13 @@ final class Bluemix
     //******************************************************************************
 
     /**
-     * @type string Our cache key
+     * @type array The cluster configuration
      */
-    protected static $cacheKey;
-    /**
-     * @type array
-     */
-    protected static $dbConfig;
+    protected $config = [];
 
-    //*************************************************************************
+    //******************************************************************************
     //* Methods
-    //*************************************************************************
+    //******************************************************************************
 
     /**
      * @param string          $service The service to retrieve
@@ -63,16 +64,11 @@ final class Bluemix
      * @param string|int|null $subkey  Subkey under index to use instead of "credentials"
      *
      * @return array|bool
+     * @throws \DreamFactory\Managed\Exceptions\ManagedEnvironmentException
      */
-    public static function getDatabaseConfig($service = self::BM_DB_SERVICE_KEY, $index = self::BM_DB_INDEX, $subkey = self::BM_DB_CREDS_KEY)
+    public function getDatabaseConfig($service = self::BM_DB_SERVICE_KEY, $index = self::BM_DB_INDEX, $subkey = self::BM_DB_CREDS_KEY)
     {
-        static::$cacheKey = static::CACHE_KEY_PREFIX . gethostname();
-
-        //  Return the cached version if we have it
-        /** @noinspection PhpUndefinedMethodInspection */
-        if (null !== ($_db = Cache::get(static::$cacheKey))) {
-            return $_db;
-        }
+        $this->cacheKey = static::CACHE_KEY_PREFIX . app('request')->getHttpHost();
 
         //  Decode and examine
         try {
@@ -105,9 +101,6 @@ final class Bluemix
 
                 unset($_envData, $_config, $_serviceSet);
 
-                /** @noinspection PhpUndefinedMethodInspection */
-                Cache::put(static::$cacheKey, $_db, static::CACHE_TTL);
-
                 return $_db;
             }
         } catch (\InvalidArgumentException $_ex) {
@@ -115,7 +108,6 @@ final class Bluemix
         }
 
         //  Database configuration not found for bluemix
-        return config('database.connections.' . config('database.default'), []);
+        throw new ManagedEnvironmentException('Bluemix platform detected but no database services are available.');
     }
-
 }
