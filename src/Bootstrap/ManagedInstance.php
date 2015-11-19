@@ -6,7 +6,6 @@ use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Enums\ManagedPlatforms;
 use DreamFactory\Managed\Providers\BluemixServiceProvider;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
-use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 
@@ -54,11 +53,11 @@ class ManagedInstance
      */
     protected function detectPlatform()
     {
-        if (env('DF_MANAGED', false)) {
+        if (true === env('DF_MANAGED', false)) {
             return ManagedPlatforms::DREAMFACTORY;
         }
 
-        if (env('VCAP_SERVICES')) {
+        if (!empty(env('VCAP_SERVICES', []))) {
             return ManagedPlatforms::BLUEMIX;
         }
 
@@ -72,9 +71,7 @@ class ManagedInstance
     {
         //  Get an instance of the cluster service
         $app->register(new ClusterServiceProvider($app));
-
-        /** @type ClusterService $_cluster */
-        $_cluster = ClusterServiceProvider::service();
+        $_cluster = ClusterServiceProvider::service($app);
 
         $_vars = [
             'DF_CACHE_PREFIX'         => $_cluster->getCachePrefix(),
@@ -127,7 +124,7 @@ class ManagedInstance
     {
         //  Get an instance of the cluster service
         $app->register(new BluemixServiceProvider($app));
-        $_service = BluemixServiceProvider::service();
+        $_service = BluemixServiceProvider::service($app);
 
         $_vars = [
             'DB_DRIVER' => 'mysql',

@@ -11,9 +11,8 @@ interface ProvidesDataCollection
     /**
      * Logs API requests to logging system
      *
-     * @param \DreamFactory\Managed\Contracts\ProvidesManagedConfig $manager     The managed service
-     * @param Request                                               $request     The request
-     * @param array                                                 $sessionData Any session data to log
+     * @param Request $request     The request
+     * @param array   $sessionData Any session data to log
      *
      * @return bool
      */

@@ -6,8 +6,8 @@ use DreamFactory\Core\Exceptions\TooManyRequestsException;
 use DreamFactory\Core\Utility\ResponseFactory;
 use DreamFactory\Core\Utility\Session;
 use DreamFactory\Library\Utility\Enums\DateTimeIntervals;
+use DreamFactory\Managed\Contracts\ProvidesManagedLimits;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
-use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -46,13 +46,16 @@ class ImposeClusterLimits
      */
     public function handle($request, Closure $next)
     {
-        //logger('[middleware] ImposeClusterLimits');
-
-        /** @type ClusterService $_cluster */
+        /**
+         * It is assumed, if you get this far, that ClusterServiceProvider was registered via
+         * the ManagedInstance bootstrapper. If not, you're in a world of shit.
+         *
+         * We use provider's service() method because Facades are not loaded yet
+         */
         $_cluster = ClusterServiceProvider::service();
 
         //  Get limits or bail
-        if (empty($limits = $_cluster->getLimits()) || !is_array($limits)) {
+        if (!($_cluster instanceof ProvidesManagedLimits) || empty($limits = $_cluster->getLimits())) {
             return $next($request);
         }
 

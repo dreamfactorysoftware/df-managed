@@ -3,7 +3,7 @@
 use DreamFactory\Managed\Contracts\ProvidesDataCollection;
 use DreamFactory\Managed\Enums\AuditLevels;
 use DreamFactory\Managed\Enums\ManagedDefaults;
-use DreamFactory\Managed\Providers\ClusterServiceProvider;
+use DreamFactory\Managed\Facades\Cluster;
 use DreamFactory\Managed\Support\GelfLogger;
 use DreamFactory\Managed\Support\GelfMessage;
 use Illuminate\Http\Request;
@@ -82,7 +82,7 @@ class AuditingService extends BaseService implements ProvidesDataCollection
             (empty($sessionData) || !is_array($sessionData)) && $sessionData = Session::all();
             array_forget($sessionData, ['_token', 'token', 'api_key', 'session_token', 'metadata']);
 
-            $_cluster = ClusterServiceProvider::service();
+            $_cluster = Cluster::service();
 
             //  Add in stuff for API request logging
             $this->log([

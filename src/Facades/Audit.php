@@ -1,9 +1,9 @@
 <?php namespace DreamFactory\Managed\Facades;
 
+use DreamFactory\Library\Utility\Facades\BaseFacade;
 use DreamFactory\Managed\Providers\AuditServiceProvider;
 use DreamFactory\Managed\Services\AuditingService;
 use DreamFactory\Managed\Support\GelfLogger;
-use Illuminate\Support\Facades\Facade;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -23,11 +23,7 @@ class Audit extends BaseFacade
     //* Methods
     //******************************************************************************
 
-    /**
-     * Get the registered name of the component.
-     *
-     * @return string
-     */
+    /** @inheritdoc */
     protected static function getFacadeAccessor()
     {
         return AuditServiceProvider::IOC_NAME;

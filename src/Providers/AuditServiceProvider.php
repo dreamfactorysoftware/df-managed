@@ -4,17 +4,7 @@ use DreamFactory\Library\Utility\Providers\BaseServiceProvider;
 use DreamFactory\Managed\Services\AuditingService;
 
 /**
- * Register the auditing service as a provider with Laravel.
- *
- * To use the "Audit" facade for this provider, you need to add the service provider to
- * your the providers array in your app/config/app.php file:
- *
- *  'providers' => array(
- *
- *      ... Other Providers Above ...
- *      'DreamFactory\Enterprise\Services\Auditing\Providers\AuditServiceProvider',
- *
- *  ),
+ * Register the auditing service
  */
 class AuditServiceProvider extends BaseServiceProvider
 {
