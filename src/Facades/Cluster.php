@@ -1,7 +1,7 @@
 <?php namespace DreamFactory\Managed\Facades;
 
 use DreamFactory\Library\Utility\Facades\BaseFacade;
-use DreamFactory\Managed\Providers\AuditServiceProvider;
+use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use Illuminate\Contracts\Http\Kernel;
 
 /**
@@ -33,6 +33,6 @@ class Cluster extends BaseFacade
     /** @inheritdoc */
     protected static function getFacadeAccessor()
     {
-        return AuditServiceProvider::IOC_NAME;
+        return ClusterServiceProvider::IOC_NAME;
     }
 }

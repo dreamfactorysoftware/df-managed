@@ -1,7 +1,7 @@
 <?php namespace DreamFactory\Managed\Facades;
 
 use DreamFactory\Library\Utility\Facades\BaseFacade;
-use DreamFactory\Managed\Providers\AuditServiceProvider;
+use DreamFactory\Managed\Providers\BluemixServiceProvider;
 use DreamFactory\Managed\Services\BluemixService;
 
 /**
@@ -18,6 +18,6 @@ class Bluemix extends BaseFacade
     /** @inheritdoc */
     protected static function getFacadeAccessor()
     {
-        return AuditServiceProvider::IOC_NAME;
+        return BluemixServiceProvider::IOC_NAME;
     }
 }
