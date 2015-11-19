@@ -17,7 +17,7 @@ use Symfony\Component\HttpFoundation\Request;
  * @method static GelfLogger getLogger()
  * @method static AuditingService setLogger(LoggerInterface $logger)
  */
-class Audit extends Facade
+class Audit extends BaseFacade
 {
     //******************************************************************************
     //* Methods
