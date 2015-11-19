@@ -1,17 +1,17 @@
 {
-  "name":        "dreamfactory/df-managed",
-  "description": "DreamFactory(tm) Managed Service Library",
-  "homepage":    "https://www.dreamfactory.com/",
-  "keywords":    [
+  "name":              "dreamfactory/df-managed",
+  "description":       "DreamFactory(tm) Managed Service Library",
+  "homepage":          "https://www.dreamfactory.com/",
+  "keywords":          [
     "dreamfactory",
     "enterprise",
     "manager",
     "remote"
   ],
-  "license":     [
+  "license":           [
     "Apache-2.0"
   ],
-  "authors":     [
+  "authors":           [
     {
       "name":  "Jerry Ablan",
       "email": "jerryablan@dreamfactory.com"
@@ -25,20 +25,21 @@
       "email": "arifislam@dreamfactory.com"
     }
   ],
-  "require":     {
+  "minimum-stability": "dev",
+  "require":           {
     "dreamfactory/php-utils": "1.1.*"
   },
-  "require-dev": {
+  "require-dev":       {
     "laravel/laravel":      "5.1.*",
     "phpunit/phpunit":      "@stable",
     "dreamfactory/df-core": "0.1.*"
   },
-  "autoload":    {
+  "autoload":          {
     "psr-4": {
       "DreamFactory\\Managed\\": "src/"
     }
   },
-  "extra":       {
+  "extra":             {
     "branch-alias": {
       "dev-develop": "1.0.x-dev"
     }
