@@ -55,7 +55,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     public function boot()
     {
         if ($this->loadCachedValues()) {
-            return false;
+            return true;
         }
 
         //  Get the manifest
