@@ -30,19 +30,21 @@ class ManagedInstance
     public function bootstrap(Application $app)
     {
         //  Detect the type of managed platform
-        switch ($this->platform = $this->detectPlatform()) {
-            case ManagedPlatforms::DREAMFACTORY:
-                $this->bootstrapDreamFactory($app);
+        if (null !== ($this->platform = $this->detectPlatform())) {
+            switch ($this->platform) {
+                case ManagedPlatforms::DREAMFACTORY:
+                    $this->bootstrapDreamFactory($app);
 
-                return;
+                    return;
 
-            case ManagedPlatforms::BLUEMIX:
-                $this->bootstrapBluemix($app);
+                case ManagedPlatforms::BLUEMIX:
+                    $this->bootstrapBluemix($app);
 
-                return;
+                    return;
 
-            default:
-                return;
+                default:
+                    return;
+            }
         }
     }
 
