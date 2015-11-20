@@ -63,7 +63,7 @@ class ImposeClusterLimits
 
         //  Convert to an array
         $limits = json_decode(json_encode($limits), true);
-        $_debug && Log::debug('Limits: ' . print_r($limits, true));
+        $_debug && \Log::debug('Limits: ' . print_r($limits, true));
 
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
@@ -108,7 +108,7 @@ class ImposeClusterLimits
             /* Per Ben, we want to increment every limit they hit, not stop after the first one */
             $overLimit = false;
 
-            $_debug && Log::debug('Keys to check: ' . print_r(array_merge($apiKeysToCheck, $serviceKeys), true));
+            $_debug && \Log::debug('Keys to check: ' . print_r(array_merge($apiKeysToCheck, $serviceKeys), true));
 
             try {
                 foreach (array_keys(array_merge($apiKeysToCheck, $serviceKeys)) as $key) {
