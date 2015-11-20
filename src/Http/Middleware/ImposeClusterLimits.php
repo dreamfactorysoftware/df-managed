@@ -69,6 +69,7 @@ class ImposeClusterLimits
 
         $_debug && \Log::debug('2');
         $_debug && \Log::debug('Service Name: ' . $this->getServiceName($request));
+        $_debug && \Log::debug('Request: ' . print_r($request));
 
         if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
             $userName = $this->getUser(Session::getCurrentUserId());
