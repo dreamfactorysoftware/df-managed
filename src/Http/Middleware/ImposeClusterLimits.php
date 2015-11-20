@@ -67,6 +67,8 @@ class ImposeClusterLimits
 
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
+        $_debug && \Log::debug('Service Name: ' . $this->getServiceName($request));
+
         if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
             $userName = $this->getUser(Session::getCurrentUserId());
             $userRole = $this->getRole(Session::getRoleId());
