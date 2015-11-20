@@ -1,6 +1,7 @@
 <?php namespace DreamFactory\Managed\Providers;
 
 use DreamFactory\Library\Utility\Providers\BaseServiceProvider;
+use DreamFactory\Managed\Enums\ManagedPlatforms;
 use DreamFactory\Managed\Services\ClusterService;
 
 /**
@@ -26,7 +27,7 @@ class ClusterServiceProvider extends BaseServiceProvider
     {
         $this->app->singleton(static::IOC_NAME,
             function ($app){
-                return new ClusterService($app);
+                return new ClusterService($app, ManagedPlatforms::DREAMFACTORY);
             });
     }
 }

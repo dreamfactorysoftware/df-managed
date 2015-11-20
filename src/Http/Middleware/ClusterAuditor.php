@@ -21,8 +21,6 @@ class ClusterAuditor
      */
     public function handle($request, Closure $next)
     {
-        //logger('[middleware] ClusterAuditor');
-
         try {
             try {
                 $_session = Session::getPublicInfo();
@@ -30,7 +28,10 @@ class ClusterAuditor
                 $_session = Session::all();
             }
 
+            //  Register the auditing service
             app()->register(AuditServiceProvider::class);
+
+            //  We use provider's service() method because Facades aren't loaded yet
             AuditServiceProvider::service()->logRequest($request, $_session);
         } catch (\Exception $_ex) {
             //  Completely ignored...

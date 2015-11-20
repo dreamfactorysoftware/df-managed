@@ -3,7 +3,7 @@
 use DreamFactory\Managed\Contracts\ProvidesDataCollection;
 use DreamFactory\Managed\Enums\AuditLevels;
 use DreamFactory\Managed\Enums\ManagedDefaults;
-use DreamFactory\Managed\Providers\ClusterServiceProvider;
+use DreamFactory\Managed\Facades\Cluster;
 use DreamFactory\Managed\Support\GelfLogger;
 use DreamFactory\Managed\Support\GelfMessage;
 use Illuminate\Http\Request;
@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Session;
 /**
  * Contains auditing methods for DFE
  */
-class AuditingService implements ProvidesDataCollection
+class AuditingService extends BaseService implements ProvidesDataCollection
 {
     //******************************************************************************
     //* Constants
@@ -69,9 +69,8 @@ class AuditingService implements ProvidesDataCollection
     /**
      * Logs an API request
      *
-     * @param \DreamFactory\Managed\Contracts\ProvidesManagedConfig $manager     Our managed instance
-     * @param \Illuminate\Http\Request                              $request     The request
-     * @param array                                                 $sessionData User session data, if any
+     * @param \Illuminate\Http\Request $request     The request
+     * @param array                    $sessionData User session data, if any
      *
      * @return bool
      */
@@ -83,7 +82,7 @@ class AuditingService implements ProvidesDataCollection
             (empty($sessionData) || !is_array($sessionData)) && $sessionData = Session::all();
             array_forget($sessionData, ['_token', 'token', 'api_key', 'session_token', 'metadata']);
 
-            $_cluster = ClusterServiceProvider::service();
+            $_cluster = Cluster::service();
 
             //  Add in stuff for API request logging
             $this->log([

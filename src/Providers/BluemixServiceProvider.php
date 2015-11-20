@@ -1,12 +1,13 @@
 <?php namespace DreamFactory\Managed\Providers;
 
 use DreamFactory\Library\Utility\Providers\BaseServiceProvider;
-use DreamFactory\Managed\Services\AuditingService;
+use DreamFactory\Managed\Enums\ManagedPlatforms;
+use DreamFactory\Managed\Services\BluemixService;
 
 /**
- * Register the auditing service
+ * Register the virtual db config manager as a Laravel provider
  */
-class AuditServiceProvider extends BaseServiceProvider
+class BluemixServiceProvider extends BaseServiceProvider
 {
     //******************************************************************************
     //* Constants
@@ -15,23 +16,18 @@ class AuditServiceProvider extends BaseServiceProvider
     /**
      * @type string The name of the service in the IoC
      */
-    const IOC_NAME = 'dfe.audit';
+    const IOC_NAME = 'df.bluemix';
 
     //********************************************************************************
-    //* Public Methods
+    //* Methods
     //********************************************************************************
 
-    /**
-     * Register the service provider.
-     *
-     * @return void
-     */
+    /** @inheritdoc */
     public function register()
     {
-        //  Register object into instance container
         $this->app->singleton(static::IOC_NAME,
             function ($app){
-                return new AuditingService($app);
+                return new BluemixService($app, ManagedPlatforms::BLUEMIX);
             });
     }
 }
