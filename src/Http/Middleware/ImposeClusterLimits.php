@@ -30,7 +30,7 @@ class ImposeClusterLimits
         'day'    => DateTimeIntervals::SECONDS_PER_DAY,
         '7-day'  => 604800,
         '30-day' => 2592000,
-    ];
+    ]; // Why?  We have no need to know the number of seconds in each of these intervals!
 
     //******************************************************************************
     //* Methods
@@ -46,6 +46,8 @@ class ImposeClusterLimits
      */
     public function handle($request, Closure $next)
     {
+        $_debug = env('APP_DEBUG', false);
+
         /**
          * It is assumed, if you get this far, that ClusterServiceProvider was registered via
          * the ManagedInstance bootstrapper. If not, you're in a world of shit.
@@ -61,13 +63,20 @@ class ImposeClusterLimits
 
         //  Convert to an array
         $limits = json_decode(json_encode($limits), true);
+        $_debug && \Log::debug('1) Limits: ' . print_r($limits, true));
+
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
+
+        $_debug && \Log::debug('2');
+        $_debug && \Log::debug('Service Name: ' . $this->getServiceName($request));
 
         if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
             $userName = $this->getUser(Session::getCurrentUserId());
             $userRole = $this->getRole(Session::getRoleId());
             $apiName = $this->getApiKey(Session::getApiKey());
             $clusterName = $_cluster->getClusterId();
+
+            $_debug && \Log::debug('User Name: ' . $userName . ' / User Role: ' . $userRole . ' / API Name: ' . $apiName . ' / Cluster Name: ' . $clusterName);
 
             //  Build the list of API Hits to check
             $apiKeysToCheck = ['cluster.default' => 0, 'instance.default' => 0];
@@ -101,23 +110,44 @@ class ImposeClusterLimits
             $userName && $apiKeysToCheck[$userName] = 0;
             $userRole && $apiKeysToCheck[$userRole] = 0;
 
+            /* Per Ben, we want to increment every limit they hit, not stop after the first one */
+            $overLimit = false;
+
+            $_debug && \Log::debug('Keys to check: ' . print_r(array_merge($apiKeysToCheck, $serviceKeys), true));
+
             try {
                 foreach (array_keys(array_merge($apiKeysToCheck, $serviceKeys)) as $key) {
                     foreach ($this->periods as $period => $minutes) {
                         $_checkKey = $key . '.' . $period;
 
                         /** @noinspection PhpUndefinedMethodInspection */
-                        if (array_key_exists($_checkKey, $limits['api']) &&
-                            Cache::increment($_checkKey) > (double)$limits['api'][$_checkKey]['limit']
-                        ) {
-                            return ResponseFactory::getException(new TooManyRequestsException('Specified connection limit exceeded'),
-                                $request);
+                        if (array_key_exists($_checkKey, $limits['api'])) {
+                            /* There's a very good and valid reason why Cache::increment was not used.  If people
+                             * would return the favor of asking why a particular section of code was done the way
+                             * it was instead of assuming that I was just an idiot, they would have known that
+                             * Cache::increment can not be used with file or database based caches, and the way that
+                             * I had coded it was guaranteed to work across all cache drivers.  They would have also
+                             * discovered that values are stored in the cache as integers, so I really don't understand
+                             * why the limit was cast to a double
+                             */
+                            $cacheValue = Cache::get($_checkKey, 0);
+                            $cacheValue++;
+                            Cache::put($_checkKey, $cacheValue, $limits['api'][$_checkKey]['period']);
+                            if ($cacheValue > $limits['api'][$_checkKey]['limit']) {
+                                $overLimit = true;
+                            }
                         }
                     }
                 }
             } catch (\Exception $_ex) {
                 return ResponseFactory::getException(new InternalServerErrorException('Unable to update cache'),
                     $request);
+            }
+
+            if ($overLimit) {
+                /* Per Ben, we want to increment every limit they hit, not stop after the first one */
+                return ResponseFactory::getException(new TooManyRequestsException('Specified connection limit exceeded'),
+                                $request);
             }
         }
 
