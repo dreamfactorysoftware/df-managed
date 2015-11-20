@@ -73,6 +73,8 @@ class ImposeClusterLimits
             $apiName = $this->getApiKey(Session::getApiKey());
             $clusterName = $_cluster->getClusterId();
 
+            $_debug && \Log::debug('User Name: ' . $userName . ' / User Role: ' . $userRole . ' / API Name: ' . $apiName . ' / Cluster Name: ' . $clusterName);
+
             //  Build the list of API Hits to check
             $apiKeysToCheck = ['cluster.default' => 0, 'instance.default' => 0];
 
