@@ -63,10 +63,11 @@ class ImposeClusterLimits
 
         //  Convert to an array
         $limits = json_decode(json_encode($limits), true);
-        $_debug && \Log::debug('Limits: ' . print_r($limits, true));
+        $_debug && \Log::debug('1) Limits: ' . print_r($limits, true));
 
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
+        $_debug && \Log::->default('2');
         $_debug && \Log::debug('Service Name: ' . $this->getServiceName($request));
 
         if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
