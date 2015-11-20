@@ -1,1 +1,1 @@
-## DreamFactory(tm) Managed Service Library v2.0.5
+## DreamFactory(tm) Managed Service Library v2.0.6
