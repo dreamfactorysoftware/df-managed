@@ -68,9 +68,9 @@ class ImposeClusterLimits
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
         $_debug && \Log::debug('2');
-        $_debug && \Log::debug('Service Name: ' . $this->getServiceName());
+        $_debug && \Log::debug('Service Name: ' . $this->getServiceName($request));
 
-        if (!empty($limits) && null !== ($serviceName = $this->getServiceName())) {
+        if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
             $userName = $this->getUser(Session::getCurrentUserId());
             $userRole = $this->getRole(Session::getRoleId());
             $apiName = $this->getApiKey(Session::getApiKey());
@@ -199,9 +199,15 @@ class ImposeClusterLimits
      *
      * @return null|string
      */
-    protected function getServiceName()
+    protected function getServiceName(Request $request)
     {
-        return $this->makeKey('service', 'serviceName', strtolower(app('router')->input('service')));
+        $index = 3;
+
+        if ($request->segment(1) == 'rest') {
+            $index = 2;
+        }
+
+        return $this->makeKey('service', 'serviceName', strtolower($request->segment($index)));
     }
 
     /**
