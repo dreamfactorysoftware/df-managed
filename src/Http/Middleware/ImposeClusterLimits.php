@@ -44,7 +44,7 @@ class ImposeClusterLimits
      *
      * @return mixed
      */
-    public function handle($request, Closure $next)
+    public function handle(Request $request, Closure $next)
     {
         $_debug = env('APP_DEBUG', false);
 
@@ -202,8 +202,7 @@ class ImposeClusterLimits
      */
     protected function getServiceName(Request $request)
     {
-        //return $this->makeKey('service', 'serviceName', $request->input('service'));
-        return $this->makeKey('service', 'serviceName', strtolower($app('router')->input('service')));
+        return $this->makeKey('service', 'serviceName', $request->input('service'));
     }
 
     /**
