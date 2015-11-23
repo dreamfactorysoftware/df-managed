@@ -46,6 +46,8 @@ class ImposeClusterLimits
      */
     public function handle(Request $request, Closure $next)
     {
+        $_debug = env('APP_DEBUG');
+
         /**
          * It is assumed, if you get this far, that ClusterServiceProvider was registered via
          * the ManagedInstance bootstrapper. If not, you're in a world of shit.
@@ -62,6 +64,8 @@ class ImposeClusterLimits
         //  Convert to an array
         $limits = json_decode(json_encode($limits), true);
 
+        $_debug && \Log::debug(print_r($limits, true));
+
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
         if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
@@ -69,6 +73,8 @@ class ImposeClusterLimits
             $userRole = $this->getRole(Session::getRoleId());
             $apiName = $this->getApiKey(Session::getApiKey());
             $clusterName = $_cluster->getClusterId();
+
+            $_debug && \Log::debug(print_r(['User Name' => $userName, 'User Role' => $userRole, 'API Name' => $apiName, 'Cluster Name' => $clusterName, 'Service Name' => $serviceName], true));
 
             //  Build the list of API Hits to check
             $apiKeysToCheck = ['cluster.default' => 0, 'instance.default' => 0];
@@ -104,6 +110,8 @@ class ImposeClusterLimits
 
             /* Per Ben, we want to increment every limit they hit, not stop after the first one */
             $overLimit = false;
+
+            $_debug && \Log::debug(print_r(array_keys(array_merge($apiKeysToCheck, $serviceKeys)), true));
 
             try {
                 foreach (array_keys(array_merge($apiKeysToCheck, $serviceKeys)) as $key) {
