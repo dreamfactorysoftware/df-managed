@@ -202,7 +202,8 @@ class ImposeClusterLimits
      */
     protected function getServiceName(Request $request)
     {
-        return $this->makeKey('service', 'serviceName', $request->input('service'));
+        //return $this->makeKey('service', 'serviceName', $request->input('service'));
+        return $this->makeKey('service', 'serviceName', strtolower($app('router')->input('service')));
     }
 
     /**
