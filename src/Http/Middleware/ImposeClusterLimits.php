@@ -46,8 +46,6 @@ class ImposeClusterLimits
      */
     public function handle(Request $request, Closure $next)
     {
-        $_debug = env('APP_DEBUG', false);
-
         /**
          * It is assumed, if you get this far, that ClusterServiceProvider was registered via
          * the ManagedInstance bootstrapper. If not, you're in a world of shit.
@@ -63,20 +61,14 @@ class ImposeClusterLimits
 
         //  Convert to an array
         $limits = json_decode(json_encode($limits), true);
-        $_debug && \Log::debug('1) Limits: ' . print_r($limits, true));
 
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
-
-        $_debug && \Log::debug('2');
-        $_debug && \Log::debug('Service Name: ' . $this->getServiceName($request));
 
         if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
             $userName = $this->getUser(Session::getCurrentUserId());
             $userRole = $this->getRole(Session::getRoleId());
             $apiName = $this->getApiKey(Session::getApiKey());
             $clusterName = $_cluster->getClusterId();
-
-            $_debug && \Log::debug('User Name: ' . $userName . ' / User Role: ' . $userRole . ' / API Name: ' . $apiName . ' / Cluster Name: ' . $clusterName);
 
             //  Build the list of API Hits to check
             $apiKeysToCheck = ['cluster.default' => 0, 'instance.default' => 0];
@@ -112,8 +104,6 @@ class ImposeClusterLimits
 
             /* Per Ben, we want to increment every limit they hit, not stop after the first one */
             $overLimit = false;
-
-            $_debug && \Log::debug('Keys to check: ' . print_r(array_merge($apiKeysToCheck, $serviceKeys), true));
 
             try {
                 foreach (array_keys(array_merge($apiKeysToCheck, $serviceKeys)) as $key) {
@@ -201,6 +191,11 @@ class ImposeClusterLimits
      */
     protected function getServiceName(Request $request)
     {
+        /*
+         * $request->input('service') does not have the service name.  Because we support both
+         * /rest/servicename and /api/v2/servicename, we need to adjust what segment we actually use
+         *
+         */
         $index = 3;
 
         if ($request->segment(1) == 'rest') {
