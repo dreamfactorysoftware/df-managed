@@ -1,24 +1,24 @@
 <?php namespace DreamFactory\Managed\Contracts;
 
-use Illuminate\Foundation\Http\Kernel;
+use Illuminate\Routing\Controller;
 
 /**
- * Allows services to be identified as having middleware
+ * Allows services to be identified as having route middleware
  *
  * @package DreamFactory\Managed\Contracts
  */
-interface HasMiddleware
+interface HasRouteMiddleware
 {
     //******************************************************************************
     //* Methods
     //******************************************************************************
 
     /**
-     * Allows services to add middleware before the request is processed
+     * Allows services to add route middleware before the request is processed
      *
-     * @param \Illuminate\Foundation\Http\Kernel $kernel
+     * @param \Illuminate\Routing\Controller $controller
      *
      * @return $this
      */
-    public function pushMiddleware(Kernel $kernel);
+    public function pushRouteMiddleware(Controller $controller);
 }
