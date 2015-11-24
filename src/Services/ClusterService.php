@@ -83,9 +83,6 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             }
         }
 
-        //  Initialize any event listeners
-        $this->initializeListeners();
-
         return true;
     }
 
@@ -105,22 +102,6 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         foreach ($this->routeMiddleware as $_middleware) {
             $controller->middleware($_middleware);
         }
-
-        return $this;
-    }
-
-    /**
-     * All event handlers are defined here
-     *
-     * @return $this
-     */
-    protected function initializeListeners()
-    {
-        //  When this event is received, any route middleware is added to the stack
-        \Event::listen('df.api-call',
-            function (Controller $controller) {
-                $this->pushRouteMiddleware($controller);
-            });
 
         return $this;
     }

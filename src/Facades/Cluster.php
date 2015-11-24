@@ -1,8 +1,11 @@
 <?php namespace DreamFactory\Managed\Facades;
 
 use DreamFactory\Library\Utility\Facades\BaseFacade;
+use DreamFactory\Managed\Contracts\HasMiddleware;
+use DreamFactory\Managed\Contracts\HasRouteMiddleware;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Routing\Controller;
 
 /**
  * ClusterService facade
@@ -22,7 +25,8 @@ use Illuminate\Contracts\Http\Kernel;
  * @method static string getCacheRoot()
  * @method static string getCachePrefix()
  * @method static array|null getLimits($key = null, $default = [])
- * @method static void pushMiddleware(Kernel $kernel)
+ * @method static HasMiddleware pushMiddleware(Kernel $kernel)
+ * @method static HasRouteMiddleware pushRouteMiddleware(Controller $controller)
  */
 class Cluster extends BaseFacade
 {
