@@ -30,7 +30,7 @@ class ImposeClusterLimits
         'day'    => DateTimeIntervals::SECONDS_PER_DAY,
         '7-day'  => 604800,
         '30-day' => 2592000,
-    ];
+    ]; // Why?  We have no need to know the number of seconds in each of these intervals!
 
     //******************************************************************************
     //* Methods
@@ -44,8 +44,9 @@ class ImposeClusterLimits
      *
      * @return mixed
      */
-    public function handle($request, Closure $next)
+    public function handle(Request $request, Closure $next)
     {
+
         /**
          * It is assumed, if you get this far, that ClusterServiceProvider was registered via
          * the ManagedInstance bootstrapper. If not, you're in a world of shit.
@@ -61,6 +62,7 @@ class ImposeClusterLimits
 
         //  Convert to an array
         $limits = json_decode(json_encode($limits), true);
+
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
         if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
@@ -101,23 +103,42 @@ class ImposeClusterLimits
             $userName && $apiKeysToCheck[$userName] = 0;
             $userRole && $apiKeysToCheck[$userRole] = 0;
 
+            /* Per Ben, we want to increment every limit they hit, not stop after the first one */
+            $overLimit = false;
+
             try {
                 foreach (array_keys(array_merge($apiKeysToCheck, $serviceKeys)) as $key) {
                     foreach ($this->periods as $period => $minutes) {
                         $_checkKey = $key . '.' . $period;
 
                         /** @noinspection PhpUndefinedMethodInspection */
-                        if (array_key_exists($_checkKey, $limits['api']) &&
-                            Cache::increment($_checkKey) > (double)$limits['api'][$_checkKey]['limit']
-                        ) {
-                            return ResponseFactory::getException(new TooManyRequestsException('Specified connection limit exceeded'),
-                                $request);
+                        if (array_key_exists($_checkKey, $limits['api'])) {
+                            /* There's a very good and valid reason why Cache::increment was not used.  If people
+                             * would return the favor of asking why a particular section of code was done the way
+                             * it was instead of assuming that I was just an idiot, they would have known that
+                             * Cache::increment can not be used with file or database based caches, and the way that
+                             * I had coded it was guaranteed to work across all cache drivers.  They would have also
+                             * discovered that values are stored in the cache as integers, so I really don't understand
+                             * why the limit was cast to a double
+                             */
+                            $cacheValue = Cache::get($_checkKey, 0);
+                            $cacheValue++;
+                            Cache::put($_checkKey, $cacheValue, $limits['api'][$_checkKey]['period']);
+                            if ($cacheValue > $limits['api'][$_checkKey]['limit']) {
+                                $overLimit = true;
+                            }
                         }
                     }
                 }
             } catch (\Exception $_ex) {
                 return ResponseFactory::getException(new InternalServerErrorException('Unable to update cache'),
                     $request);
+            }
+
+            if ($overLimit) {
+                /* Per Ben, we want to increment every limit they hit, not stop after the first one */
+                return ResponseFactory::getException(new TooManyRequestsException('Specified connection limit exceeded'),
+                                $request);
             }
         }
 
@@ -171,7 +192,18 @@ class ImposeClusterLimits
      */
     protected function getServiceName(Request $request)
     {
-        return $this->makeKey('service', 'serviceName', $request->input('service'));
+        /*
+         * $request->input('service') does not have the service name.  Because we support both
+         * /rest/servicename and /api/v2/servicename, we need to adjust what segment we actually use
+         *
+         */
+        $index = 3;
+
+        if ($request->segment(1) == 'rest') {
+            $index = 2;
+        }
+
+        return $this->makeKey('service', 'serviceName', strtolower($request->segment($index)));
     }
 
     /**

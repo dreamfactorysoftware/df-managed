@@ -78,8 +78,11 @@ class AuditingService extends BaseService implements ProvidesDataCollection
     {
         try {
             //  Get some session data if none given, then remove any unmentionables...
-            /** @noinspection PhpUndefinedMethodInspection */
-            (empty($sessionData) || !is_array($sessionData)) && $sessionData = Session::all();
+            if ((empty($sessionData) || !is_array($sessionData))) {
+                /** @noinspection PhpUndefinedMethodInspection */
+                $sessionData = Session::all();
+            }
+
             array_forget($sessionData, ['_token', 'token', 'api_key', 'session_token', 'metadata']);
 
             $_cluster = Cluster::service();

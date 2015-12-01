@@ -4,6 +4,7 @@ use DreamFactory\Library\Utility\Curl;
 use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Library\Utility\JsonFile;
 use DreamFactory\Managed\Contracts\HasMiddleware;
+use DreamFactory\Managed\Contracts\HasRouteMiddleware;
 use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
 use DreamFactory\Managed\Contracts\ProvidesManagedLimits;
 use DreamFactory\Managed\Enums\ManagedDefaults;
@@ -12,13 +13,14 @@ use DreamFactory\Managed\Support\ClusterManifest;
 use Illuminate\Foundation\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Routing\Controller;
 
 /**
  * A service that interacts with the DFE console
  *
  * NOTE: Environment variables take precedence to cluster manifest in some instances (i.e. getLogPath())
  */
-class ClusterService extends BaseService implements ProvidesManagedConfig, ProvidesManagedLimits, HasMiddleware
+class ClusterService extends BaseService implements ProvidesManagedConfig, ProvidesManagedLimits, HasMiddleware, HasRouteMiddleware
 {
     //******************************************************************************
     //* Constants
@@ -41,6 +43,14 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
      * @type array The cluster configuration
      */
     protected $config = [];
+    /**
+     * @type array Middleware to be injected
+     */
+    protected $middleware = [];
+    /**
+     * @type array Route middleware to be injected
+     */
+    protected $routeMiddleware = [];
 
     //******************************************************************************
     //* Methods
@@ -54,26 +64,46 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
      */
     public function boot()
     {
-        if ($this->loadCachedValues()) {
-            return true;
+        if (!$this->loadCachedValues()) {
+            //  Get the manifest
+            $_manifest = new ClusterManifest($this);
+
+            //  Seed our config with the manifest
+            $this->config = $_manifest->toArray();
+
+            try {
+                //  Now let's discover our secret powers...
+                return $this->interrogateCluster();
+            } catch (\Exception $_ex) {
+                $this->reset();
+
+                throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(),
+                    $_ex->getCode(),
+                    $_ex);
+            }
         }
 
-        //  Get the manifest
-        $_manifest = new ClusterManifest($this);
+        return true;
+    }
 
-        //  Seed our config with the manifest
-        $this->config = $_manifest->toArray();
-
-        try {
-            //  Now let's discover our secret powers...
-            return $this->interrogateCluster();
-        } catch (\Exception $_ex) {
-            $this->reset();
-
-            throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(),
-                $_ex->getCode(),
-                $_ex);
+    /** @inheritdoc */
+    public function pushMiddleware(Kernel $kernel)
+    {
+        foreach ($this->middleware as $_middleware) {
+            $kernel->pushMiddleware($_middleware);
         }
+
+        return $this;
+    }
+
+    /** @inheritdoc */
+    public function pushRouteMiddleware(Controller $controller)
+    {
+        foreach ($this->routeMiddleware as $_middleware) {
+            $controller->middleware($_middleware);
+        }
+
+        return $this;
     }
 
     /**
@@ -104,6 +134,8 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
 
         //  Cool, we got's what we needs's
         $this->config = $_cached;
+        $this->middleware = array_get($_cached, '.middleware', []);
+        $this->routeMiddleware = array_get($_cached, '.route-middleware', []);
 
         return true;
     }
@@ -115,6 +147,8 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     {
         $_cacheFile = Disk::path($this->getCachePath(), true, 0775) . DIRECTORY_SEPARATOR . $this->getCacheKey();
         $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
+        $this->config['.middleware'] = $this->middleware;
+        $this->config['.route-middleware'] = $this->routeMiddleware;
 
         return JsonFile::encodeFile($_cacheFile, $this->config);
     }
@@ -198,6 +232,17 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             'db'            => (array)head((array)data_get($_status, 'response.metadata.db', [])),
             'limits'        => (array)data_get($_status, 'response.metadata.limits', []),
         ]);
+
+        //  Add in our middleware
+        $this->middleware = [
+            'DreamFactory\Managed\Http\Middleware\ImposeClusterLimits',
+            'DreamFactory\Managed\Http\Middleware\ClusterAuditor',
+        ];
+
+        //  And our route middleware
+        $this->routeMiddleware = [
+            //'DreamFactory\Managed\Http\Middleware\ImposeClusterLimits',
+        ];
 
         //  Freshen the cache...
         $this->freshenCache();
@@ -470,15 +515,5 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     public function getLimits($key = null, $default = [])
     {
         return $this->getConfig((null === $key) ? 'limits' : 'limits.' . $key, $default);
-    }
-
-    /**
-     * @param Kernel $kernel
-     */
-    public function pushMiddleware(Kernel $kernel)
-    {
-        $kernel
-            ->pushMiddleware('DreamFactory\Managed\Http\Middleware\ImposeClusterLimits')
-            ->pushMiddleware('DreamFactory\Managed\Http\Middleware\ClusterAuditor');
     }
 }
