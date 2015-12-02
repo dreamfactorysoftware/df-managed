@@ -198,14 +198,14 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
 
         //  Clean up the paths accordingly
         $_paths['log-path'] = env('DF_MANAGED_LOG_PATH',
-            Disk::segment([
+            Disk::path([
                 $_storageRoot,
                 array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
                 ManagedDefaults::PRIVATE_LOG_PATH_NAME,
             ],
                 false));
 
-        $_paths['private-log-path'] = Disk::segment([
+        $_paths['private-log-path'] = Disk::path([
             array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
             ManagedDefaults::PRIVATE_LOG_PATH_NAME,
         ],
