@@ -465,6 +465,18 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             $recursive);
     }
 
+    /**
+     * @param bool $create    If true, path will be created
+     * @param int  $mode      The mode if creating
+     * @param bool $recursive Create recursively?
+     *
+     * @return string A path (un-ensured!) for the limits cache that all instances can access
+     */
+    public function getLimitsCachePath($create = false, $mode = 0777, $recursive = true)
+    {
+        return Disk::path([sys_get_temp_dir(), '.df-limits-cache'], $create, $mode, $recursive);
+    }
+
     /** @inheritdoc */
     public function getDatabaseConfig()
     {
