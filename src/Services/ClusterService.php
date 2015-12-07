@@ -198,14 +198,14 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
 
         //  Clean up the paths accordingly
         $_paths['log-path'] = env('DF_MANAGED_LOG_PATH',
-            Disk::segment([
+            Disk::path([
                 $_storageRoot,
                 array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
                 ManagedDefaults::PRIVATE_LOG_PATH_NAME,
             ],
                 false));
 
-        $_paths['private-log-path'] = Disk::segment([
+        $_paths['private-log-path'] = Disk::path([
             array_get($_paths, 'private-path', ManagedDefaults::DEFAULT_PRIVATE_PATH_NAME),
             ManagedDefaults::PRIVATE_LOG_PATH_NAME,
         ],
@@ -466,6 +466,12 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     }
 
     /** @inheritdoc */
+    public function getLimitsCachePath($create = false, $mode = 0777, $recursive = true)
+    {
+        return Disk::path([$this->getCacheRoot(), '.limits'], $create, $mode, $recursive);
+    }
+
+    /** @inheritdoc */
     public function getDatabaseConfig()
     {
         return $this->getConfig('db');
@@ -489,11 +495,15 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         return $this->getConfig('storage-root');
     }
 
-    /** Returns cache root */
+    /**
+     * Returns cache root
+     *
+     * @return string
+     */
     public function getCacheRoot()
     {
         return env('DF_MANAGED_CACHE_PATH',
-            $this->getConfig('cache-root', Disk::path([sys_get_temp_dir(), '.df-cache', '.cluster'])));
+            $this->getConfig('cache-root', Disk::path([sys_get_temp_dir(), '.df-cache'])));
     }
 
     /**

@@ -5,11 +5,10 @@ use DreamFactory\Core\Exceptions\InternalServerErrorException;
 use DreamFactory\Core\Exceptions\TooManyRequestsException;
 use DreamFactory\Core\Utility\ResponseFactory;
 use DreamFactory\Core\Utility\Session;
-use DreamFactory\Library\Utility\Enums\DateTimeIntervals;
 use DreamFactory\Managed\Contracts\ProvidesManagedLimits;
+use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
 class ImposeClusterLimits
 {
@@ -25,12 +24,12 @@ class ImposeClusterLimits
      * @type array The available periods
      */
     protected $periods = [
-        'minute' => DateTimeIntervals::SECONDS_PER_MINUTE,
-        'hour'   => DateTimeIntervals::SECONDS_PER_HOUR,
-        'day'    => DateTimeIntervals::SECONDS_PER_DAY,
-        '7-day'  => 604800,
-        '30-day' => 2592000,
-    ]; // Why?  We have no need to know the number of seconds in each of these intervals!
+        'minute',
+        'hour',
+        'day',
+        '7-day',
+        '30-day',
+    ];
 
     //******************************************************************************
     //* Methods
@@ -46,7 +45,6 @@ class ImposeClusterLimits
      */
     public function handle(Request $request, Closure $next)
     {
-
         /**
          * It is assumed, if you get this far, that ClusterServiceProvider was registered via
          * the ManagedInstance bootstrapper. If not, you're in a world of shit.
@@ -60,29 +58,45 @@ class ImposeClusterLimits
             return $next($request);
         }
 
-        //  Convert to an array
-        $limits = json_decode(json_encode($limits), true);
-
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
-        if (!empty($limits) && null !== ($serviceName = $this->getServiceName($request))) {
+        if (!empty($limits)) {
             $userName = $this->getUser(Session::getCurrentUserId());
             $userRole = $this->getRole(Session::getRoleId());
             $apiName = $this->getApiKey(Session::getApiKey());
             $clusterName = $_cluster->getClusterId();
+            $instanceName = $_cluster->getInstanceName();
+            $serviceName = $this->getServiceName($request);
+
+            $limits = json_encode($limits);
+
+            //TODO: Update dfe-console to properly set this, but right now, we want to touch as few files as possible
+            if (!$this->testing) {
+                $limits =
+                    str_replace(['cluster.default', 'instance.default'],
+                        [$clusterName, $clusterName . '.' . $instanceName],
+                        $limits);
+            }
+
+            //  Convert to an array
+            $limits = json_decode($limits, true);
 
             //  Build the list of API Hits to check
-            $apiKeysToCheck = ['cluster.default' => 0, 'instance.default' => 0];
+            $apiKeysToCheck = [$clusterName . '.' . $instanceName => 0];
 
-            $serviceKeys[$serviceName] = 0;
-            $userRole && $serviceKeys[$serviceName . '.' . $userRole] = 0;
-            $userName && $serviceKeys[$serviceName . '.' . $userName] = 0;
+            $serviceKeys = [];
+
+            if ($serviceName) {
+                $serviceKeys[$serviceName] = 0;
+                $userRole && $serviceKeys[$serviceName . '.' . $userRole] = 0;
+                $userName && $serviceKeys[$serviceName . '.' . $userName] = 0;
+            }
 
             if ($apiName) {
-                $apiKeysToCheck[$apiName] = 0;
+                $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $apiName] = 0;
 
-                $userRole && $apiKeysToCheck[$apiName . '.' . $userRole] = 0;
-                $userName && $apiKeysToCheck[$apiName . '.' . $userName] = 0;
+                $userRole && $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $apiName . '.' . $userRole] = 0;
+                $userName && $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $apiName . '.' . $userName] = 0;
 
                 foreach ($serviceKeys as $key => $value) {
                     $apiKeysToCheck[$apiName . '.' . $key] = $value;
@@ -92,27 +106,36 @@ class ImposeClusterLimits
             if ($clusterName) {
                 $apiKeysToCheck[$clusterName] = 0;
 
-                $userRole && $apiKeysToCheck[$clusterName . '.' . $userRole] = 0;
-                $userName && $apiKeysToCheck[$clusterName . '.' . $userName] = 0;
+                $userRole && $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $userRole] = 0;
+                $userName && $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $userName] = 0;
 
                 foreach ($serviceKeys as $key => $value) {
-                    $apiKeysToCheck[$clusterName . '.' . $key] = $value;
+                    $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $key] = $value;
                 }
             }
 
-            $userName && $apiKeysToCheck[$userName] = 0;
-            $userRole && $apiKeysToCheck[$userRole] = 0;
-
             /* Per Ben, we want to increment every limit they hit, not stop after the first one */
-            $overLimit = false;
+            $overLimit = [];
 
             try {
-                foreach (array_keys(array_merge($apiKeysToCheck, $serviceKeys)) as $key) {
-                    foreach ($this->periods as $period => $minutes) {
+                /** @noinspection PhpUndefinedMethodInspection */
+                /** @type \Illuminate\Cache\Repository $_cache */
+                $_cache = \Cache::store(env('DF_LIMITS_CACHE_STORE', ManagedDefaults::DEFAULT_LIMITS_STORE));
+
+                foreach (array_keys($apiKeysToCheck) as $key) {
+                    foreach ($this->periods as $period) {
                         $_checkKey = $key . '.' . $period;
 
                         /** @noinspection PhpUndefinedMethodInspection */
                         if (array_key_exists($_checkKey, $limits['api'])) {
+
+                            // For any cache drivers that make use of the cache prefix, we need to make sure we use
+                            // a prefix that every instance can see.  But first, grab the current value
+
+                            $dfCachePrefix = env('DF_CACHE_PREFIX');
+                            putenv('DF_CACHE_PREFIX' . '=' . 'df_limits');
+                            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
+
                             /* There's a very good and valid reason why Cache::increment was not used.  If people
                              * would return the favor of asking why a particular section of code was done the way
                              * it was instead of assuming that I was just an idiot, they would have known that
@@ -121,24 +144,35 @@ class ImposeClusterLimits
                              * discovered that values are stored in the cache as integers, so I really don't understand
                              * why the limit was cast to a double
                              */
-                            $cacheValue = Cache::get($_checkKey, 0);
+                            $cacheValue = $_cache->get($_checkKey, 0);
                             $cacheValue++;
-                            Cache::put($_checkKey, $cacheValue, $limits['api'][$_checkKey]['period']);
+
                             if ($cacheValue > $limits['api'][$_checkKey]['limit']) {
-                                $overLimit = true;
+                                // Push the name of the rule onto the over-limit array so we can give the name in the
+                                // 429 error message
+                                $overLimit[] = $limits['api'][$_checkKey]['name'];
+                            } else {
+                                // Only increment the counter if we are not over the limit.  Fixes DFE-205
+                                $_cache->put($_checkKey, $cacheValue, $limits['api'][$_checkKey]['period']);
                             }
+
+                            // And now set it back
+                            putenv('DF_CACHE_PREFIX' . '=' . $dfCachePrefix);
+                            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $dfCachePrefix;
                         }
                     }
                 }
             } catch (\Exception $_ex) {
-                return ResponseFactory::getException(new InternalServerErrorException('Unable to update cache'),
+                return ResponseFactory::getException(new InternalServerErrorException('Unable to update cache: ' .
+                    $_ex->getMessage()),
                     $request);
             }
 
             if ($overLimit) {
                 /* Per Ben, we want to increment every limit they hit, not stop after the first one */
-                return ResponseFactory::getException(new TooManyRequestsException('Specified connection limit exceeded'),
-                                $request);
+                return ResponseFactory::getException(new TooManyRequestsException('API limit(s) exceeded: ' .
+                    implode(', ', $overLimit)),
+                    $request);
             }
         }
 
@@ -194,7 +228,7 @@ class ImposeClusterLimits
     {
         /*
          * $request->input('service') does not have the service name.  Because we support both
-         * /rest/servicename and /api/v2/servicename, we need to adjust what segment we actually use
+         * /rest/service-name and /api/v2/service-name, we need to adjust what segment we actually use
          *
          */
         $index = 3;
@@ -203,7 +237,18 @@ class ImposeClusterLimits
             $index = 2;
         }
 
-        return $this->makeKey('service', 'serviceName', strtolower($request->segment($index)));
+        /*
+         * If we don't have at least 1 more segment than the value of index, there is no service.  Segments are
+         * 1 based while count is 0 based
+         */
+
+        $value = null;
+
+        if (count($request->segments()) >= $index) {
+            $value = strtolower($request->segment($index));
+        }
+
+        return $this->makeKey('service', 'serviceName', $value);
     }
 
     /**

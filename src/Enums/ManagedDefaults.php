@@ -67,4 +67,8 @@ class ManagedDefaults extends FactoryEnum
      * @type string The hash algorithm
      */
     const DEFAULT_ALGORITHM = self::DEFAULT_SIGNATURE_METHOD;
+    /**
+     * @type string The cache store (see config/cache.php) to use for managed limits
+     */
+    const DEFAULT_LIMITS_STORE = 'dfe-limits';
 }
