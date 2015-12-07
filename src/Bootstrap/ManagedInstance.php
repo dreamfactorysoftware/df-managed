@@ -6,6 +6,7 @@ use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Enums\ManagedPlatforms;
 use DreamFactory\Managed\Providers\BluemixServiceProvider;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
+use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 
@@ -73,12 +74,14 @@ class ManagedInstance
     {
         //  Get an instance of the cluster service
         $app->register(new ClusterServiceProvider($app));
+        /** @type ClusterService $_cluster */
         $_cluster = ClusterServiceProvider::service($app);
 
         $_vars = [
             'DF_CACHE_PREFIX'         => $_cluster->getCachePrefix(),
             'DF_CACHE_PATH'           => $_cluster->getCachePath(),
-            'DF_LIMITS_CACHE_PATH'    => $_cluster->getLimitsCachePath(),
+            'DF_LIMITS_CACHE_STORE'   => ManagedDefaults::DEFAULT_LIMITS_STORE,
+            'DF_LIMITS_CACHE_PATH'    => Disk::path([$_cluster->getCacheRoot(), '.limits'], true),
             'DF_MANAGED_SESSION_PATH' => Disk::path([$_cluster->getCacheRoot(), '.sessions'], true),
             'DF_MANAGED_LOG_FILE'     => $_cluster->getHostName() . '.log',
             'DF_MANAGED'              => true,
