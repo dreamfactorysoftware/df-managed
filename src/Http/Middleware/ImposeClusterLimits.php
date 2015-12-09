@@ -8,6 +8,7 @@ use DreamFactory\Core\Utility\Session;
 use DreamFactory\Managed\Contracts\ProvidesManagedLimits;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
+use Illuminate\Cache\Repository;
 use Illuminate\Http\Request;
 
 class ImposeClusterLimits
@@ -30,10 +31,41 @@ class ImposeClusterLimits
         '7-day',
         '30-day',
     ];
+    /**
+     * @type Repository Our cache
+     */
+    protected $repository;
 
     //******************************************************************************
     //* Methods
     //******************************************************************************
+
+    /**
+     * Get the limits cache
+     *
+     * @return \Illuminate\Cache\Repository
+     */
+    protected function cache()
+    {
+        if (!$this->repository) {
+            $_store = env('DF_LIMITS_CACHE_STORE', ManagedDefaults::DEFAULT_LIMITS_STORE);
+
+            //  If no config defined, make one
+            if (empty(config('cache.stores.' . $_store))) {
+                config([
+                    'cache.stores.' . $_store => [
+                        'driver' => 'file',
+                        'path'   => env('DF_LIMITS_CACHE_PATH', storage_path('framework/cache')),
+                    ],
+                ]);
+            }
+
+            //  Create the cache
+            $this->repository = app('cache')->store($_store);
+        }
+
+        return $this->repository;
+    }
 
     /**
      * Handle an incoming request.
@@ -72,10 +104,9 @@ class ImposeClusterLimits
 
             //TODO: Update dfe-console to properly set this, but right now, we want to touch as few files as possible
             if (!$this->testing) {
-                $limits =
-                    str_replace(['cluster.default', 'instance.default'],
-                        [$clusterName, $clusterName . '.' . $instanceName],
-                        $limits);
+                $limits = str_replace(['cluster.default', 'instance.default'],
+                    [$clusterName, $clusterName . '.' . $instanceName],
+                    $limits);
             }
 
             //  Convert to an array
@@ -118,10 +149,6 @@ class ImposeClusterLimits
             $overLimit = [];
 
             try {
-                /** @noinspection PhpUndefinedMethodInspection */
-                /** @type \Illuminate\Cache\Repository $_cache */
-                $_cache = \Cache::store(env('DF_LIMITS_CACHE_STORE', ManagedDefaults::DEFAULT_LIMITS_STORE));
-
                 foreach (array_keys($apiKeysToCheck) as $key) {
                     foreach ($this->periods as $period) {
                         $_checkKey = $key . '.' . $period;
@@ -136,24 +163,16 @@ class ImposeClusterLimits
                             putenv('DF_CACHE_PREFIX' . '=' . 'df_limits');
                             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
 
-                            /* There's a very good and valid reason why Cache::increment was not used.  If people
-                             * would return the favor of asking why a particular section of code was done the way
-                             * it was instead of assuming that I was just an idiot, they would have known that
-                             * Cache::increment can not be used with file or database based caches, and the way that
-                             * I had coded it was guaranteed to work across all cache drivers.  They would have also
-                             * discovered that values are stored in the cache as integers, so I really don't understand
-                             * why the limit was cast to a double
-                             */
-                            $cacheValue = $_cache->get($_checkKey, 0);
+                            //  Increment counter
+                            $cacheValue = $this->cache()->get($_checkKey, 0);
                             $cacheValue++;
 
                             if ($cacheValue > $limits['api'][$_checkKey]['limit']) {
-                                // Push the name of the rule onto the over-limit array so we can give the name in the
-                                // 429 error message
+                                // Push the name of the rule onto the over-limit array so we can give the name in the 429 error message
                                 $overLimit[] = $limits['api'][$_checkKey]['name'];
                             } else {
                                 // Only increment the counter if we are not over the limit.  Fixes DFE-205
-                                $_cache->put($_checkKey, $cacheValue, $limits['api'][$_checkKey]['period']);
+                                $this->cache()->put($_checkKey, $cacheValue, $limits['api'][$_checkKey]['period']);
                             }
 
                             // And now set it back
@@ -163,15 +182,13 @@ class ImposeClusterLimits
                     }
                 }
             } catch (\Exception $_ex) {
-                return ResponseFactory::getException(new InternalServerErrorException('Unable to update cache: ' .
-                    $_ex->getMessage()),
+                return ResponseFactory::getException(new InternalServerErrorException('Unable to update cache: ' . $_ex->getMessage()),
                     $request);
             }
 
             if ($overLimit) {
                 /* Per Ben, we want to increment every limit they hit, not stop after the first one */
-                return ResponseFactory::getException(new TooManyRequestsException('API limit(s) exceeded: ' .
-                    implode(', ', $overLimit)),
+                return ResponseFactory::getException(new TooManyRequestsException('API limit(s) exceeded: ' . implode(', ', $overLimit)),
                     $request);
             }
         }
@@ -226,10 +243,9 @@ class ImposeClusterLimits
      */
     protected function getServiceName(Request $request)
     {
-        /*
+        /**
          * $request->input('service') does not have the service name.  Because we support both
          * /rest/service-name and /api/v2/service-name, we need to adjust what segment we actually use
-         *
          */
         $index = 3;
 
@@ -237,7 +253,7 @@ class ImposeClusterLimits
             $index = 2;
         }
 
-        /*
+        /**
          * If we don't have at least 1 more segment than the value of index, there is no service.  Segments are
          * 1 based while count is 0 based
          */
