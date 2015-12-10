@@ -5,6 +5,9 @@
     <inspection_tool class="PhpUndefinedClassInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="DONT_REPORT_MULTI_RESOLVE" value="true" />
     </inspection_tool>
+    <inspection_tool class="PhpUndefinedMethodInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="DOWNGRADE_SEVERITY" value="true" />
+    </inspection_tool>
     <inspection_tool class="PhpUnusedLocalVariableInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="DONT_REPORT_INSIDE_LIST" value="true" />
     </inspection_tool>
