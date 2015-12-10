@@ -155,6 +155,7 @@ class ImposeClusterLimits
 
                         /** @noinspection PhpUndefinedMethodInspection */
                         if (array_key_exists($_checkKey, $limits['api'])) {
+                            $_limit = $limits['api'][$_checkKey];
 
                             // For any cache drivers that make use of the cache prefix, we need to make sure we use
                             // a prefix that every instance can see.  But first, grab the current value
@@ -167,12 +168,12 @@ class ImposeClusterLimits
                             $cacheValue = $this->cache()->get($_checkKey, 0);
                             $cacheValue++;
 
-                            if ($cacheValue > $limits['api'][$_checkKey]['limit']) {
+                            if ($cacheValue > $_limit['limit']) {
                                 // Push the name of the rule onto the over-limit array so we can give the name in the 429 error message
-                                $overLimit[] = $limits['api'][$_checkKey]['name'];
+                                $overLimit[] = array_get($_limit, 'name', $_checkKey);
                             } else {
                                 // Only increment the counter if we are not over the limit.  Fixes DFE-205
-                                $this->cache()->put($_checkKey, $cacheValue, $limits['api'][$_checkKey]['period']);
+                                $this->cache()->put($_checkKey, $cacheValue, $_limit['period']);
                             }
 
                             // And now set it back
