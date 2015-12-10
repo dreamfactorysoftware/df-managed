@@ -41,7 +41,7 @@ class ImposeClusterLimits
     //******************************************************************************
 
     /**
-     * Get the limits cache
+     * Get the limits cache, creating it if necessary
      *
      * @return \Illuminate\Cache\Repository
      */
@@ -50,7 +50,7 @@ class ImposeClusterLimits
         if (!$this->repository) {
             $_store = env('DF_LIMITS_CACHE_STORE', ManagedDefaults::DEFAULT_LIMITS_STORE);
 
-            //  If no config defined, make one
+            //  If no config defined, make one. Fixes version mismatch when "composer update"-ing
             if (empty(config('cache.stores.' . $_store))) {
                 config([
                     'cache.stores.' . $_store => [
@@ -90,6 +90,7 @@ class ImposeClusterLimits
             return $next($request);
         }
 
+        //  Check for unit test flag or env general testing scenarios
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
         if (!empty($limits)) {
@@ -102,7 +103,9 @@ class ImposeClusterLimits
 
             $limits = json_encode($limits);
 
-            //TODO: Update dfe-console to properly set this, but right now, we want to touch as few files as possible
+            /**
+             * @todo Update dfe-console to properly set this, but right now, we want to touch as few files as possible
+             */
             if (!$this->testing) {
                 $limits = str_replace(['cluster.default', 'instance.default'],
                     [$clusterName, $clusterName . '.' . $instanceName],
@@ -145,40 +148,44 @@ class ImposeClusterLimits
                 }
             }
 
-            /* Per Ben, we want to increment every limit they hit, not stop after the first one */
+            /** Per Ben, we want to increment every limit they hit, not stop after the first one */
             $overLimit = [];
 
             try {
-                foreach (array_keys($apiKeysToCheck) as $key) {
-                    foreach ($this->periods as $period) {
-                        $_checkKey = $key . '.' . $period;
+                //  Build a regex pattern for multi-key lookup across all periods
+                $_keysToCheck = '\b(' . implode('|', array_keys($apiKeysToCheck)) . ')\b';
+                $_periodPattern = '\.\b(' . implode('|', $this->periods) . ')\b';
+                $_matched = array_only($limits['api'], preg_grep('/^' . $_keysToCheck . $_periodPattern . '$/', array_keys($limits['api'])));
 
-                        /** @noinspection PhpUndefinedMethodInspection */
-                        if (array_key_exists($_checkKey, $limits['api'])) {
+                //  Scoot through the matched keys
+                foreach ($_matched as $_checkKey => $_limit) {
+                    /**
+                     * For any cache drivers that use a cache prefix, make sure we use one that every instance can see.
+                     * But first, grab the current value
+                     */
+                    $dfCachePrefix = env('DF_CACHE_PREFIX');
+                    putenv('DF_CACHE_PREFIX' . '=' . 'df_limits');
+                    $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
 
-                            // For any cache drivers that make use of the cache prefix, we need to make sure we use
-                            // a prefix that every instance can see.  But first, grab the current value
+                    try {
+                        //  Increment counter
+                        $cacheValue = $this->cache()->get($_checkKey, 0);
+                        $cacheValue++;
 
-                            $dfCachePrefix = env('DF_CACHE_PREFIX');
-                            putenv('DF_CACHE_PREFIX' . '=' . 'df_limits');
-                            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
-
-                            //  Increment counter
-                            $cacheValue = $this->cache()->get($_checkKey, 0);
-                            $cacheValue++;
-
-                            if ($cacheValue > $limits['api'][$_checkKey]['limit']) {
-                                // Push the name of the rule onto the over-limit array so we can give the name in the 429 error message
-                                $overLimit[] = $limits['api'][$_checkKey]['name'];
-                            } else {
-                                // Only increment the counter if we are not over the limit.  Fixes DFE-205
-                                $this->cache()->put($_checkKey, $cacheValue, $limits['api'][$_checkKey]['period']);
-                            }
-
-                            // And now set it back
-                            putenv('DF_CACHE_PREFIX' . '=' . $dfCachePrefix);
-                            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $dfCachePrefix;
+                        if ($cacheValue > $_limit['limit']) {
+                            //  Push the name of the rule onto the over-limit array so we can give the name in the 429 error message
+                            $overLimit[] = array_get($_limit, 'name', $_checkKey);
+                        } else {
+                            //  Only increment the counter if we are not over the limit.  Fixes DFE-205
+                            $this->cache()->put($_checkKey, $cacheValue, $_limit['period']);
                         }
+                    } catch (\Exception $_ex) {
+                        //  Ignored
+                    }
+                    finally {
+                        //  Ensure the cache prefix is restored
+                        putenv('DF_CACHE_PREFIX' . '=' . $dfCachePrefix);
+                        $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $dfCachePrefix;
                     }
                 }
             } catch (\Exception $_ex) {
@@ -187,7 +194,7 @@ class ImposeClusterLimits
             }
 
             if ($overLimit) {
-                /* Per Ben, we want to increment every limit they hit, not stop after the first one */
+                /** Per Ben, we want to increment every limit they hit, not stop after the first one */
                 return ResponseFactory::getException(new TooManyRequestsException('API limit(s) exceeded: ' . implode(', ', $overLimit)),
                     $request);
             }
