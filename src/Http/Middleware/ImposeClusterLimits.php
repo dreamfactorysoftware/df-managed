@@ -40,14 +40,16 @@ class ImposeClusterLimits
     //* Methods
     //******************************************************************************
 
-    /**
-     * Get the limits cache
-     *
-     * @return \Illuminate\Cache\Repository
+    /*
+      Get the limits cache
+
+      @return \Illuminate\Cache\Repository
      */
-    protected function cache()
+    public static function cache()
     {
-        if (!$this->repository) {
+        static $_repository;
+
+        if (!$_repository) {
             $_store = env('DF_LIMITS_CACHE_STORE', ManagedDefaults::DEFAULT_LIMITS_STORE);
 
             //  If no config defined, make one
@@ -61,10 +63,10 @@ class ImposeClusterLimits
             }
 
             //  Create the cache
-            $this->repository = app('cache')->store($_store);
+            $_repository = app('cache')->store($_store);
         }
 
-        return $this->repository;
+        return $_repository;
     }
 
     /**
@@ -165,7 +167,7 @@ class ImposeClusterLimits
                             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
 
                             //  Increment counter
-                            $cacheValue = $this->cache()->get($_checkKey, 0);
+                            $cacheValue = static::cache()->get($_checkKey, 0);
                             $cacheValue++;
 
                             if ($cacheValue > $_limit['limit']) {
@@ -173,7 +175,7 @@ class ImposeClusterLimits
                                 $overLimit[] = array_get($_limit, 'name', $_checkKey);
                             } else {
                                 // Only increment the counter if we are not over the limit.  Fixes DFE-205
-                                $this->cache()->put($_checkKey, $cacheValue, $_limit['period']);
+                                static::cache()->put($_checkKey, $cacheValue, $_limit['period']);
                             }
 
                             // And now set it back
