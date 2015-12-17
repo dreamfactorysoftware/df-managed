@@ -25,8 +25,8 @@ class ClusterServiceProvider extends BaseServiceProvider
     /** @inheritdoc */
     public function register()
     {
-        $this->app->singleton(static::IOC_NAME,
-            function ($app){
+        $this->singleton(static::IOC_NAME,
+            function ($app) {
                 return new ClusterService($app, ManagedPlatforms::DREAMFACTORY);
             });
     }

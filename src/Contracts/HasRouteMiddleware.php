@@ -4,8 +4,6 @@ use Illuminate\Routing\Controller;
 
 /**
  * Allows services to be identified as having route middleware
- *
- * @package DreamFactory\Managed\Contracts
  */
 interface HasRouteMiddleware
 {

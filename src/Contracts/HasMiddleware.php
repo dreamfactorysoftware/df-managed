@@ -4,8 +4,6 @@ use Illuminate\Foundation\Http\Kernel;
 
 /**
  * Allows services to be identified as having middleware
- *
- * @package DreamFactory\Managed\Contracts
  */
 interface HasMiddleware
 {
