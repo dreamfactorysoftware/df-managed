@@ -245,7 +245,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
 
         //  And our route middleware
         $this->routeMiddleware = [
-            //'DreamFactory\Managed\Http\Middleware\ImposeClusterLimits',
+            //  None at this time
         ];
 
         //  Freshen the cache...
