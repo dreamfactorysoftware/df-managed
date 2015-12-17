@@ -281,10 +281,8 @@ class ImposeClusterLimits
         if ($this->testing) {
             return $stub . ':' . $testName;
         }
-        $ttl = $this->periods[end(explode('.',$cachekey))];
 
         return null === $value ? $default : $stub . ':' . $value;
     }
-
 
 }
