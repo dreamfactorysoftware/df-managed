@@ -117,7 +117,7 @@ class ImposeClusterLimits
 
             //  Convert it back to an array
             $limits = json_decode($limits, true);
-Log::debug(print_r($limits, true));
+\Log::debug(print_r($limits, true));
             /**
              * Keys needed:
              *
@@ -147,7 +147,7 @@ Log::debug(print_r($limits, true));
 
             /* Per Ben, we want to increment every limit they hit, not stop after the first one */
             $overLimit = [];
-Log::debug(print_r($apiKeysToCheck, true));
+\Log::debug(print_r($apiKeysToCheck, true));
             try {
                 foreach (array_keys($apiKeysToCheck) as $key) {
                     foreach ($this->periods as $period) {
@@ -166,7 +166,7 @@ Log::debug(print_r($apiKeysToCheck, true));
 
                             //  Increment counter
                             $cacheValue = $this->cache()->get($_checkKey, 0);
-Log::debug($_checkKey . ' : ' . $cacheValue);
+\Log::debug($_checkKey . ' : ' . $cacheValue);
                             $cacheValue++;
 
                             if ($cacheValue > $_limit['limit']) {
