@@ -92,7 +92,7 @@ class ImposeClusterLimits
 
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
-        if (!empty($limits)) {
+        if (!empty($limits['api'])) {
             $userId = $this->getUser(Session::getCurrentUserId());
             $clusterName = $_cluster->getClusterId();
             $instanceName = $_cluster->getInstanceName();
@@ -117,7 +117,7 @@ class ImposeClusterLimits
 
             //  Convert it back to an array
             $limits = json_decode($limits, true);
-\Log::debug(print_r($limits, true));
+
             /**
              * Keys needed:
              *
@@ -136,18 +136,18 @@ class ImposeClusterLimits
              * or user specific limit set.
              */
 
-            !$this->preg_array_key_exists($limits,
+            !$this->preg_array_key_exists($limits['api'],
                 '/^' . $clusterName . '\.' . $instanceName . '/'
             ) && $apiKeysToCheck[$clusterName . '.each_instance|' . $instanceName] = 1;
 
-            if (!$this->preg_array_key_exists($limits, '/^' . $clusterName . '\.' . $instanceName . '\.' . $userId . '/')) {
+            if (!$this->preg_array_key_exists($limits['api'], '/^' . $clusterName . '\.' . $instanceName . '\.' . $userId . '/')) {
                 $apiKeysToCheck[$clusterName . '.each_instance|' . $instanceName . '.' . 'each_user|' . $userId] = 1;
                 $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . 'each_user|' . $userId] = 1;
             }
 
             /* Per Ben, we want to increment every limit they hit, not stop after the first one */
             $overLimit = [];
-\Log::debug(print_r($apiKeysToCheck, true));
+
             try {
                 foreach (array_keys($apiKeysToCheck) as $key) {
                     foreach ($this->periods as $period) {
@@ -166,7 +166,7 @@ class ImposeClusterLimits
 
                             //  Increment counter
                             $cacheValue = $this->cache()->get($_checkKey, 0);
-\Log::debug($_checkKey . ' : ' . $cacheValue);
+
                             $cacheValue++;
 
                             if ($cacheValue > $_limit['limit']) {
