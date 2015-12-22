@@ -55,7 +55,7 @@ class ImposeClusterLimits
                 config([
                     'cache.stores.' . $_store => [
                         'driver' => 'file',
-                        'path'   => env('DF_LIMITS_CACHE_PATH', storage_path('framework/cache')),
+                        'path' => env('DF_LIMITS_CACHE_PATH', storage_path('framework/cache')),
                     ],
                 ]);
             }
@@ -71,7 +71,7 @@ class ImposeClusterLimits
      * Handle an incoming request.
      *
      * @param  \Illuminate\Http\Request $request
-     * @param  \Closure                 $next
+     * @param  \Closure $next
      *
      * @return mixed
      */
@@ -92,57 +92,57 @@ class ImposeClusterLimits
 
         $this->testing = config('api_limits_test', 'testing' == env('APP_ENV'));
 
-        if (!empty($limits)) {
-            $userName = $this->getUser(Session::getCurrentUserId());
-            $userRole = $this->getRole(Session::getRoleId());
-            $apiName = $this->getApiKey(Session::getApiKey());
+        if (!empty($limits['api'])) {
+            $userId = $this->getUser(Session::getCurrentUserId());
             $clusterName = $_cluster->getClusterId();
             $instanceName = $_cluster->getInstanceName();
-            $serviceName = $this->getServiceName($request);
+
+            // Convert the array to a json string to make things easier
 
             $limits = json_encode($limits);
 
-            //TODO: Update dfe-console to properly set this, but right now, we want to touch as few files as possible
+            /**
+             * dfe-console now saves the new style limits, but just in case something didn't get updated, replace it
+             *
+             * While we're at it, replace any occurance of each_instance with each_instance|instance_name and each_user
+             * with each_user|user:userID.  A pipe | was used because the user id already has a colon in it, just in
+             * case the individual tokens need to be tokenized further
+             */
+
             if (!$this->testing) {
-                $limits = str_replace(['cluster.default', 'instance.default'],
-                    [$clusterName, $clusterName . '.' . $instanceName],
+                $limits = str_replace(['cluster.default', 'instance.default', 'each_instance', 'each_user'],
+                    [$clusterName, $clusterName . '.' . $instanceName, 'each_instance|' . $instanceName, 'each_user|' . $userId],
                     $limits);
             }
 
-            //  Convert to an array
+            //  Convert it back to an array
             $limits = json_decode($limits, true);
 
+            /**
+             * Keys needed:
+             *
+             * cluster_name
+             * cluster_name.instance_name
+             * cluster_name.instance_name.user_id
+             */
+
             //  Build the list of API Hits to check
-            $apiKeysToCheck = [$clusterName . '.' . $instanceName => 0];
+            $apiKeysToCheck = [$clusterName => 1, $clusterName . '.' . $instanceName => 1];
 
-            $serviceKeys = [];
+            $userId && $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $userId] = 1;
 
-            if ($serviceName) {
-                $serviceKeys[$serviceName] = 0;
-                $userRole && $serviceKeys[$serviceName . '.' . $userRole] = 0;
-                $userName && $serviceKeys[$serviceName . '.' . $userName] = 0;
-            }
+            /**
+             * Deal with each_instance and each_user options.  Only check for these if there is not an instance specific
+             * or user specific limit set.
+             */
 
-            if ($apiName) {
-                $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $apiName] = 0;
+            !$this->preg_array_key_exists($limits['api'],
+                '/^' . $clusterName . '\.' . $instanceName . '\.' . implode('|', $this->periods) . '/'
+            ) && $apiKeysToCheck[$clusterName . '.each_instance|' . $instanceName] = 1;
 
-                $userRole && $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $apiName . '.' . $userRole] = 0;
-                $userName && $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $apiName . '.' . $userName] = 0;
-
-                foreach ($serviceKeys as $key => $value) {
-                    $apiKeysToCheck[$apiName . '.' . $key] = $value;
-                }
-            }
-
-            if ($clusterName) {
-                $apiKeysToCheck[$clusterName] = 0;
-
-                $userRole && $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $userRole] = 0;
-                $userName && $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $userName] = 0;
-
-                foreach ($serviceKeys as $key => $value) {
-                    $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . $key] = $value;
-                }
+            if (!$this->preg_array_key_exists($limits['api'], '/^' . $clusterName . '\.' . $instanceName . '\.' . $userId . '/')) {
+                $apiKeysToCheck[$clusterName . '.each_instance|' . $instanceName . '.' . 'each_user|' . $userId] = 1;
+                $apiKeysToCheck[$clusterName . '.' . $instanceName . '.' . 'each_user|' . $userId] = 1;
             }
 
             /* Per Ben, we want to increment every limit they hit, not stop after the first one */
@@ -166,6 +166,7 @@ class ImposeClusterLimits
 
                             //  Increment counter
                             $cacheValue = $this->cache()->get($_checkKey, 0);
+
                             $cacheValue++;
 
                             if ($cacheValue > $_limit['limit']) {
@@ -269,8 +270,8 @@ class ImposeClusterLimits
     }
 
     /**
-     * @param string      $stub
-     * @param string      $testName
+     * @param string $stub
+     * @param string $testName
      * @param string|null $value
      * @param string|null $default
      *
@@ -283,6 +284,19 @@ class ImposeClusterLimits
         }
 
         return null === $value ? $default : $stub . ':' . $value;
+    }
+
+    /**
+     * Return true if at least one array_key exits and matches the supplied pattern
+     *
+     * @param $array Array to check
+     * @param $pattern Perl Regex Pattern
+     */
+    protected function preg_array_key_exists($array, $pattern)
+    {
+        $matches = preg_grep($pattern, array_keys($array));
+
+        return !empty($matches);
     }
 
 }
