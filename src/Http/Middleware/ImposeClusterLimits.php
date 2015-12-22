@@ -137,7 +137,7 @@ class ImposeClusterLimits
              */
 
             !$this->preg_array_key_exists($limits['api'],
-                '/^' . $clusterName . '\.' . $instanceName . '/'
+                '/^' . $clusterName . '\.' . $instanceName . '\.' . implode('|', $this->periods) . '/'
             ) && $apiKeysToCheck[$clusterName . '.each_instance|' . $instanceName] = 1;
 
             if (!$this->preg_array_key_exists($limits['api'], '/^' . $clusterName . '\.' . $instanceName . '\.' . $userId . '/')) {
