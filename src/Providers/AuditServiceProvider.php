@@ -34,10 +34,4 @@ class AuditServiceProvider extends BaseServiceProvider
                 return new AuditingService($app);
             });
     }
-
-    public function boot()
-    {
-        //$this->app['router']->addRoute(['GET','HEAD',], '/instance', 'ExampleController@getStatus' );
-        \Route::controller('/instance', '\DreamFactory\Managed\Http\Controllers\InstanceController');
-    }
 }
