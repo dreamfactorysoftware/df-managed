@@ -34,4 +34,10 @@ class AuditServiceProvider extends BaseServiceProvider
                 return new AuditingService($app);
             });
     }
+
+    public function boot()
+    {
+        $this->app['router']->controller('/instance', '\DreamFactory\Managed\Http\Controllers\InstanceController' );
+        //\Route::controller('/instance', '\DreamFactory\Managed\Http\Controllers\InstanceController');
+    }
 }
