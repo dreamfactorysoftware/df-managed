@@ -31,12 +31,11 @@ class InstanceController extends Controller
 
     public function getRefresh()
     {
-        print "Creating cluster";
         // Get an instance of the Cluster Service Provider
         $_cluster = ClusterServiceProvider::service();
 
         // Force the instance to pull the config from the console
-        print "calling cluster setup";
+        print "calling cluster setup\n";
         $_cluster->setup();
 
         return ['success' => true];

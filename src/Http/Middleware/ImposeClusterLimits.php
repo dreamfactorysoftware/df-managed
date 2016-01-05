@@ -45,7 +45,7 @@ class ImposeClusterLimits
      *
      * @return \Illuminate\Cache\Repository
      */
-    protected function cache()
+    public function cache()
     {
         if (!$this->repository) {
             $_store = env('DF_LIMITS_CACHE_STORE', ManagedDefaults::DEFAULT_LIMITS_STORE);
