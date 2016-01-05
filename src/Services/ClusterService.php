@@ -3,6 +3,7 @@
 use DreamFactory\Library\Utility\Curl;
 use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Library\Utility\JsonFile;
+use DreamFactory\Managed\Contracts\HasManagedRoutes;
 use DreamFactory\Managed\Contracts\HasMiddleware;
 use DreamFactory\Managed\Contracts\HasRouteMiddleware;
 use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
@@ -14,13 +15,14 @@ use Illuminate\Foundation\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Illuminate\Routing\Router;
 
 /**
  * A service that interacts with the DFE console
  *
  * NOTE: Environment variables take precedence to cluster manifest in some instances (i.e. getLogPath())
  */
-class ClusterService extends BaseService implements ProvidesManagedConfig, ProvidesManagedLimits, HasMiddleware, HasRouteMiddleware
+class ClusterService extends BaseService implements ProvidesManagedConfig, ProvidesManagedLimits, HasMiddleware, HasRouteMiddleware, HasManagedRoutes
 {
     //******************************************************************************
     //* Constants
@@ -90,10 +92,20 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         } catch (\Exception $_ex) {
             $this->reset();
 
-            throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(),
-                $_ex->getCode(),
-                $_ex);
+                throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(), $_ex->getCode(), $_ex);
+            }
         }
+
+        return true;
+    }
+
+    /** @inheritdoc */
+    public function addManagedRoutes(Router $router)
+    {
+        //  Something like this?
+        //$router->controller('instance', ExampleController::class);
+
+        return $this;
     }
 
     /** @inheritdoc */
@@ -135,10 +147,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         }
 
         //  These must exist otherwise we need to phone home
-        if (empty($_cached) ||
-            !is_array($_cached) ||
-            !isset($_cached['paths'], $_cached['env'], $_cached['db'], $_cached['audit'])
-        ) {
+        if (empty($_cached) || !is_array($_cached) || !isset($_cached['paths'], $_cached['env'], $_cached['db'], $_cached['audit'])) {
             return false;
         }
 
@@ -178,8 +187,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         $_status = $this->callConsole('status', ['id' => $_id = $this->getInstanceName()]);
 
         if (!($_status instanceof \stdClass) || !data_get($_status, 'response.metadata')) {
-            throw new \RuntimeException('Corrupt response during status query for "' . $_id . '".',
-                Response::HTTP_SERVICE_UNAVAILABLE);
+            throw new \RuntimeException('Corrupt response during status query for "' . $_id . '".', Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
         if (!$_status->success) {
@@ -187,8 +195,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         }
 
         if (data_get($_status, 'response.archived', false) || data_get($_status, 'response.deleted', false)) {
-            throw new \RuntimeException('Instance "' . $_id . '" has been archived and/or deleted.',
-                Response::HTTP_UNPROCESSABLE_ENTITY);
+            throw new \RuntimeException('Instance "' . $_id . '" has been archived and/or deleted.', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         //  Validate domain of this host
@@ -251,7 +258,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
 
         //  And our route middleware
         $this->routeMiddleware = [
-            //'DreamFactory\Managed\Http\Middleware\ImposeClusterLimits',
+            //  None at this time
         ];
 
         //  Freshen the cache...

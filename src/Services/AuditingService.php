@@ -136,10 +136,7 @@ class AuditingService extends BaseService implements ProvidesDataCollection
         }
 
         if (env('DF_MANAGED_ENABLE_AUDIT_LOGGING', false)) {
-            logger('audit ' .
-                ($_result ? 'success' : 'failure') .
-                ': ' .
-                (isset($_message) ? $_message->toJson() : 'no message made'));
+            logger('audit ' . ($_result ? 'success' : 'failure') . ': ' . (isset($_message) ? $_message->toJson() : 'no message made'));
         }
     }
 
