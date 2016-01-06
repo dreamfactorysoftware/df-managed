@@ -21,35 +21,6 @@ class InstanceController extends Controller
     }
 
     /**
-     * Get the limits cache
-     *
-     * @return \Illuminate\Cache\Repository
-     */
-    protected function cache()
-    {
-        static $repository;
-
-        if (!$repository) {
-            $_store = env('DF_LIMITS_CACHE_STORE', ManagedDefaults::DEFAULT_LIMITS_STORE);
-
-            //  If no config defined, make one
-            if (empty(config('cache.stores.' . $_store))) {
-                config([
-                    'cache.stores.' . $_store => [
-                        'driver' => 'file',
-                        'path' => env('DF_LIMITS_CACHE_PATH', storage_path('framework/cache')),
-                    ],
-                ]);
-            }
-
-            //  Create the cache
-            $repository = app('cache')->store($_store);
-        }
-
-        return $repository;
-    }
-
-    /**
      * Respond to /instance/refresh-config
      */
 
@@ -83,7 +54,7 @@ class InstanceController extends Controller
         $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
 
         try {
-            $cache = $this->cache();
+            $cache = ImposeClusterLimits::cache();
             logger('Current value of ' . $cacheKey . ' : ' . $cache->get($cacheKey));
             $cache->put($cacheKey, 0, $this->periods[end(explode('.',$cacheKey))]);
             logger('New value of ' . $cacheKey . ' : ' . $cache->get($cacheKey));
