@@ -60,11 +60,12 @@ class InstanceController extends Controller
             logger('New value of ' . $cacheKey . ' : ' . $cache->get($cacheKey));
 
         } catch (\Exception $e) {
-
+            logger('Error : ' . print_r($e, true));
         } finally {
             //  Ensure the cache prefix is restored
             putenv('DF_CACHE_PREFIX' . '=' . $dfCachePrefix);
             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $dfCachePrefix;
+            return ['success' => true];
         }
     }
 }
