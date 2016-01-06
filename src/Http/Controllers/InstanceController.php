@@ -35,19 +35,18 @@ class InstanceController extends Controller
         $_cluster = ClusterServiceProvider::service();
 
         // Force the instance to pull the config from the console
-        print "calling cluster setup\n";
-        $_cluster->setup();
+        logger('Instance configuration refresh initiated by console');
 
-        return ['success' => true];
+        return ['success' => $_cluster->setup()];
     }
 
     /**
-     * Respond to /instance/clear-counter/<cache-key>
+     * Respond to /instance/clearcounter/<cache-key>
      *
      * Where <cache-key> is a string value such as cluster-dfelocal.test1.minute or cluster-dfelocal.hour
      */
 
-    public function deleteClearCounter($cacheKey)
+    public function deleteClearcounter($cacheKey)
     {
 
         $dfCachePrefix = env('DF_CACHE_PREFIX');
@@ -55,7 +54,10 @@ class InstanceController extends Controller
         $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
 
         try {
-            ImposeClusterLimits::cache()->put($cacheKey, 0, $this->periods[end(explode('.',$cacheKey))]);
+            $cache = ImposeClusterLimits::cache();
+            logger(print_r($cache, true));
+            //$cache->get($cacheKey);
+            $cache->put($cacheKey, 0, $this->periods[end(explode('.',$cacheKey))]);
 
         } catch (\Exception $e) {
 

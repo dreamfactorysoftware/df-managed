@@ -93,7 +93,6 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             $this->reset();
 
                 throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(), $_ex->getCode(), $_ex);
-            }
         }
 
         return true;
