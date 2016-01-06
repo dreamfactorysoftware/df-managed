@@ -6,18 +6,11 @@ use DreamFactory\Managed\Http\Middleware\ImposeClusterLimits;
 
 class InstanceController extends Controller
 {
-    private $periods = [
-        'minute' => 1,
-        'hour' => 60,
-        'day' => 1440,
-        '7-day' => 10080,
-        '30-day' => 43200,
-    ];
 
     function __construct()
     {
         // Once initial testing has been completed, put console check here
-
+        //$this->middleware('access_check');
     }
 
     /**
@@ -29,24 +22,43 @@ class InstanceController extends Controller
         echo "Instance Controller";
     }
 
-    public function getRefresh()
+    /**
+     * Tell an instance to contact the console and get a fresh copy of it's configuration
+     *
+     * Responds to /instance/refresh
+     *
+     * @return array
+     */
+    public function putRefresh()
     {
         // Get an instance of the Cluster Service Provider
         $_cluster = ClusterServiceProvider::service();
 
+        // Debug
+        logger('Current Limits : ' . print_r($_cluster->getLimits(), true));
+
         // Force the instance to pull the config from the console
         logger('Instance configuration refresh initiated by console');
 
-        return ['success' => $_cluster->setup()];
+        $retval = $_cluster->setup();
+
+        //Debug
+        logger('New Limits : ' . print_r($_cluster->getLimits(), true));
+
+        return ['success' => $retval];
     }
 
     /**
-     * Respond to /instance/clearcounter/<cache-key>
+     * Tell an instance to delete a single limits counter from the cache
+     *
+     * Respond to /instance/clearlimitscounter/<cache-key>
      *
      * Where <cache-key> is a string value such as cluster-dfelocal.test1.minute or cluster-dfelocal.hour
+     *
+     * @return array
      */
 
-    public function deleteClearcounter($cacheKey)
+    public function deleteClearlimitscounter($cacheKey)
     {
 
         $dfCachePrefix = env('DF_CACHE_PREFIX');
@@ -55,15 +67,33 @@ class InstanceController extends Controller
 
         try {
             $cache = ImposeClusterLimits::cache();
-            $tokens = explode('.',$cacheKey);
-            $period = end($tokens);
-            logger('Current value of ' . $cacheKey . ' : ' . $cache->get($cacheKey, 0));
-            //$cache->put($cacheKey, 0, $this->periods[$period]);
             $cache->forget($cacheKey);
-            logger('New value of ' . $cacheKey . ' : ' . $cache->get($cacheKey, 0));
+            logger('Limit count for ' . $cacheKey . ' reset initiated by console');
 
         } catch (\Exception $e) {
-            logger('Error : ' . print_r($e->getMessage(), true));
+            logger('Error clearing limit count : ' . print_r($e->getMessage(), true));
+        } finally {
+            //  Ensure the cache prefix is restored
+            putenv('DF_CACHE_PREFIX' . '=' . $dfCachePrefix);
+            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $dfCachePrefix;
+            return ['success' => true];
+        }
+    }
+
+
+    public function deleteClearlimitscache()
+    {
+        $dfCachePrefix = env('DF_CACHE_PREFIX');
+        putenv('DF_CACHE_PREFIX' . '=' . 'df_limits');
+        $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
+
+        try {
+            $cache = ImposeClusterLimits::cache();
+            $cache->flush();
+            logger('Limits cache clear initiated by console');
+
+        } catch (\Exception $e) {
+            logger('Error clearing limits cache : ' . print_r($e->getMessage(), true));
         } finally {
             //  Ensure the cache prefix is restored
             putenv('DF_CACHE_PREFIX' . '=' . $dfCachePrefix);
