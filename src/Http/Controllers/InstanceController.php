@@ -55,9 +55,9 @@ class InstanceController extends Controller
 
         try {
             $cache = ImposeClusterLimits::cache();
-            logger(print_r($cache, true));
-            //$cache->get($cacheKey);
+            logger('Current value of ' . $cacheKey . ' : ' . $cache->get($cacheKey));
             $cache->put($cacheKey, 0, $this->periods[end(explode('.',$cacheKey))]);
+            logger('New value of ' . $cacheKey . ' : ' . $cache->get($cacheKey));
 
         } catch (\Exception $e) {
 
