@@ -9,8 +9,7 @@ class InstanceController extends Controller
 
     function __construct()
     {
-        // Once initial testing has been completed, put console check here
-        //$this->middleware('access_check');
+        $this->middleware('access_check');
     }
 
     /**
