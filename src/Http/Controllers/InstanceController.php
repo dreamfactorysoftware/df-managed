@@ -18,7 +18,7 @@ class InstanceController extends Controller
 
     public function getIndex()
     {
-        echo "Instance Controller";
+
     }
 
     /**
@@ -79,7 +79,11 @@ class InstanceController extends Controller
         }
     }
 
-
+    /**
+     * Tell an instance to delete the complete limits cache
+     *
+     * @return array
+     */
     public function deleteClearlimitscache()
     {
         $dfCachePrefix = env('DF_CACHE_PREFIX');
