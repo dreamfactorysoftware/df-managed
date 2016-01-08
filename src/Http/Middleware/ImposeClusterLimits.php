@@ -31,10 +31,6 @@ class ImposeClusterLimits
         '7-day',
         '30-day',
     ];
-    /**
-     * @type Repository Our cache
-     */
-    protected $repository;
 
     //******************************************************************************
     //* Methods
@@ -45,9 +41,11 @@ class ImposeClusterLimits
      *
      * @return \Illuminate\Cache\Repository
      */
-    protected function cache()
+    static function cache()
     {
-        if (!$this->repository) {
+        static $repository;
+
+        if (!$repository) {
             $_store = env('DF_LIMITS_CACHE_STORE', ManagedDefaults::DEFAULT_LIMITS_STORE);
 
             //  If no config defined, make one
@@ -61,10 +59,10 @@ class ImposeClusterLimits
             }
 
             //  Create the cache
-            $this->repository = app('cache')->store($_store);
+            $repository = app('cache')->store($_store);
         }
 
-        return $this->repository;
+        return $repository;
     }
 
     /**
@@ -87,6 +85,12 @@ class ImposeClusterLimits
 
         //  Get limits or bail
         if (!($_cluster instanceof ProvidesManagedLimits) || empty($limits = $_cluster->getLimits())) {
+            return $next($request);
+        }
+
+        // Bail if this is the instance controller
+
+        if ($request->segment(1) == "instance") {
             return $next($request);
         }
 

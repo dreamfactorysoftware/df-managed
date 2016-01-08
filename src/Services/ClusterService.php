@@ -67,20 +67,32 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     public function boot()
     {
         if (!$this->loadCachedValues()) {
-            //  Get the manifest
-            $_manifest = new ClusterManifest($this);
+            $this->setup();
+        }
 
-            //  Seed our config with the manifest
-            $this->config = $_manifest->toArray();
+        return true;
+    }
 
-            try {
-                //  Now let's discover our secret powers...
-                return $this->interrogateCluster();
-            } catch (\Exception $_ex) {
-                $this->reset();
+    /**
+     * Get the cluster manifest and interrogate the cluster.  Moved to it's own method so it can be called by
+     * both the boot method and from the Instance Controller
+     */
+
+    public function setup()
+    {
+        //  Get the manifest
+        $_manifest = new ClusterManifest($this);
+
+        //  Seed our config with the manifest
+        $this->config = $_manifest->toArray();
+
+        try {
+            //  Now let's discover our secret powers...
+            return $this->interrogateCluster();
+        } catch (\Exception $_ex) {
+            $this->reset();
 
                 throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(), $_ex->getCode(), $_ex);
-            }
         }
 
         return true;

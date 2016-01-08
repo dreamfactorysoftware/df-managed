@@ -30,8 +30,14 @@ class AuditServiceProvider extends BaseServiceProvider
     {
         //  Register object into instance container
         $this->app->singleton(static::IOC_NAME,
-            function ($app){
+            function($app) {
                 return new AuditingService($app);
             });
+    }
+
+    public function boot()
+    {
+        $this->app['router']->controller('/instance', '\DreamFactory\Managed\Http\Controllers\InstanceController' );
+        //\Route::controller('/instance', '\DreamFactory\Managed\Http\Controllers\InstanceController');
     }
 }
