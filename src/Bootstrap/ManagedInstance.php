@@ -131,18 +131,23 @@ class ManagedInstance
      */
     protected function bootstrapBluemix($app)
     {
+        print "Entering bootstrapBluemix\n";
         //  Get an instance of the cluster service
         $app->register(new BluemixServiceProvider($app));
+        print "Bluemix Service Provider registered\n";
         $_service = BluemixServiceProvider::service($app);
+        print "Bluemix SP instatiated\n";
 
         $_vars = [
             'DB_DRIVER' => 'mysql',
         ];
 
+        print "Attempting to get database info\n";
         //  Get the cluster database information
         foreach ($_service->getDatabaseConfig() as $_key => $_value) {
             $_vars['DB_' . strtr(strtoupper($_key), '-', '_')] = $_value;
         }
+
         print_r($_vars);
         //  Now jam everything into the environment
         foreach ($_vars as $_key => $_value) {
