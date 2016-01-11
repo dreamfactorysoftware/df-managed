@@ -143,6 +143,7 @@ class ManagedInstance
         ];
 
         print "Attempting to get database info\n";
+        print_r($_ENV);
         //  Get the cluster database information
         foreach ($_service->getDatabaseConfig() as $_key => $_value) {
             $_vars['DB_' . strtr(strtoupper($_key), '-', '_')] = $_value;
