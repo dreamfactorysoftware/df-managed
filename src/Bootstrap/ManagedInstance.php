@@ -34,16 +34,19 @@ class ManagedInstance
         if (null !== ($this->platform = $this->detectPlatform())) {
             switch ($this->platform) {
                 case ManagedPlatforms::DREAMFACTORY:
+                    print "Booting DreamFactory";
                     $this->bootstrapDreamFactory($app);
 
                     return;
 
                 case ManagedPlatforms::BLUEMIX:
+                    print "Boothing Bluemix";
                     $this->bootstrapBluemix($app);
 
                     return;
 
                 default:
+                    "Standalone";
                     return;
             }
         }
