@@ -34,19 +34,19 @@ class ManagedInstance
         if (null !== ($this->platform = $this->detectPlatform())) {
             switch ($this->platform) {
                 case ManagedPlatforms::DREAMFACTORY:
-                    print "Booting DreamFactory";
+                    print "<pre>Booting DreamFactory\n";
                     $this->bootstrapDreamFactory($app);
 
                     return;
 
                 case ManagedPlatforms::BLUEMIX:
-                    print "Boothing Bluemix";
+                    print "<pre>Booting Bluemix\n";
                     $this->bootstrapBluemix($app);
 
                     return;
 
                 default:
-                    "Standalone";
+                    print "Standalone";
                     return;
             }
         }
@@ -143,7 +143,7 @@ class ManagedInstance
         foreach ($_service->getDatabaseConfig() as $_key => $_value) {
             $_vars['DB_' . strtr(strtoupper($_key), '-', '_')] = $_value;
         }
-
+        print_r($_vars);
         //  Now jam everything into the environment
         foreach ($_vars as $_key => $_value) {
             putenv($_key . '=' . $_value);
