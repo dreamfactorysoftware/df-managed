@@ -68,7 +68,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
      */
     public function getDatabaseConfig($service = self::BM_DB_SERVICE_KEY, $index = self::BM_DB_INDEX, $subkey = self::BM_DB_CREDS_KEY)
     {
-        $this->cacheKey = static::CACHE_KEY_PREFIX . app('request')->getHttpHost();
+        //$this->cacheKey = static::CACHE_KEY_PREFIX . app('request')->getHttpHost();
 
         //  Decode and examine
         try {
