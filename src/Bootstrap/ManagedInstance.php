@@ -130,6 +130,7 @@ class ManagedInstance
     {
         //  Get an instance of the cluster service
         $app->register(new BluemixServiceProvider($app));
+
         $_service = BluemixServiceProvider::service($app);
 
         $_vars = [
