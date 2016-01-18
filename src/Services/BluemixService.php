@@ -23,7 +23,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
     /**
      * @type string The name of the key containing the database
      */
-    const BM_DB_SERVICE_KEY = 'mysql-5.5';
+    const BM_DB_SERVICE_KEY = 'cleardb';
     /**
      * @type int The index of the database to use
      */
