@@ -18,7 +18,7 @@ class InstanceController extends Controller
 
     public function getIndex()
     {
-
+        echo "Instance Controller";
     }
 
     /**
@@ -33,10 +33,16 @@ class InstanceController extends Controller
         // Get an instance of the Cluster Service Provider
         $_cluster = ClusterServiceProvider::service();
 
+        // Debug
+        logger('Current Limits : ' . print_r($_cluster->getLimits(), true));
+
         // Force the instance to pull the config from the console
         logger('Instance configuration refresh initiated by console');
 
         $retval = $_cluster->setup();
+
+        //Debug
+        logger('New Limits : ' . print_r($_cluster->getLimits(), true));
 
         return ['success' => $retval];
     }
@@ -73,11 +79,7 @@ class InstanceController extends Controller
         }
     }
 
-    /**
-     * Tell an instance to delete the complete limits cache
-     *
-     * @return array
-     */
+
     public function deleteClearlimitscache()
     {
         $dfCachePrefix = env('DF_CACHE_PREFIX');
