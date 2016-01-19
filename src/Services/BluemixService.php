@@ -3,6 +3,7 @@
 use DreamFactory\Library\Utility\Json;
 use DreamFactory\Managed\Contracts\ProvidesManagedDatabase;
 use DreamFactory\Managed\Enums\ManagedDefaults;
+use DreamFactory\Managed\Enums\BlueMixDefaults;
 use DreamFactory\Managed\Exceptions\ManagedEnvironmentException;
 
 /**
@@ -12,39 +13,6 @@ use DreamFactory\Managed\Exceptions\ManagedEnvironmentException;
  */
 class BluemixService extends BaseService implements ProvidesManagedDatabase
 {
-    //******************************************************************************
-    //* Constants
-    //******************************************************************************
-
-    /**
-     * @type string The environment variable that holds the credentials for the database
-     */
-    const BM_ENV_KEY = 'VCAP_SERVICES';
-    /**
-     * @type string The name of the key containing the database
-     */
-    const BM_DB_SERVICE_KEY = 'cleardb';
-    /**
-     * @type int The index of the database to use
-     */
-    const BM_DB_INDEX = 0;
-    /**
-     * @type string The name of the key containing the credentials
-     */
-    const BM_DB_CREDS_KEY = 'credentials';
-    /**
-     * @type string Cache key in the config
-     */
-    const CACHE_CONFIG_KEY = 'cache.stores.file.path';
-    /**
-     * @type string Prepended to the cache keys of this object
-     */
-    const CACHE_KEY_PREFIX = 'df.bluemix.database.';
-    /**
-     * @type int The number of minutes to keep managed instance data cached
-     */
-    const CACHE_TTL = ManagedDefaults::CONFIG_CACHE_TTL;
-
     //******************************************************************************
     //* Members
     //******************************************************************************
@@ -66,12 +34,12 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
      * @return array|bool
      * @throws \DreamFactory\Managed\Exceptions\ManagedEnvironmentException
      */
-    public function getDatabaseConfig($service = self::BM_DB_SERVICE_KEY, $index = self::BM_DB_INDEX, $subkey = self::BM_DB_CREDS_KEY)
+    public function getDatabaseConfig($service = BlueMixDefaults::BM_DB_SERVICE_KEY, $index = BlueMixDefaults::BM_DB_INDEX, $subkey = BlueMixDefaults::BM_DB_CREDS_KEY)
     {
         //  Decode and examine
         try {
             /** @type string $_envData */
-            $_envData = getenv(static::BM_ENV_KEY);
+            $_envData = getenv(BlueMixDefaults::BM_ENV_KEY);
 
             if (!empty($_availableServices = Json::decode($_envData, true))) {
                 $_serviceSet = array_get($_availableServices, $service);
