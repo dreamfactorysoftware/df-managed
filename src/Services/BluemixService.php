@@ -40,13 +40,13 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         try {
             /** @type string $_envData */
             $_envData = getenv(BlueMixDefaults::BM_ENV_KEY);
-print "Service: $service\nIndex: $index\nSubkey: $subkey\n";
+
             if (!empty($_availableServices = Json::decode($_envData, true))) {
                 $_serviceSet = array_get($_availableServices, $service);
-print_r($_serviceSet[$index]);
+
                 //  Get credentials environment data
                 $_config = array_get(isset($_serviceSet[$index]) ? $_serviceSet[$index] : [], $subkey, []);
-print_r($_config);
+
                 if (empty($_config)) {
                     throw new \RuntimeException('DB credentials not found in env: ' . print_r($_serviceSet, true));
                 }
