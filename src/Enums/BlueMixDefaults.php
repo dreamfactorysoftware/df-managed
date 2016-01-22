@@ -19,7 +19,7 @@ class BlueMixDefaults extends FactoryEnum
     /**
      * @type string The name of the key containing the database
      */
-    const BM_DB_SERVICE_KEY = 'cleardb';
+    const BM_DB_SERVICE_KEY = 'user-provided';
     /**
      * @type int The index of the database to use
      */
