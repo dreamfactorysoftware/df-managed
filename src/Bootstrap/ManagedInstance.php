@@ -2,9 +2,9 @@
 
 use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Managed\Contracts\HasMiddleware;
+use DreamFactory\Managed\Enums\BlueMixDefaults;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Enums\ManagedPlatforms;
-use DreamFactory\Managed\Enums\BlueMixDefaults;
 use DreamFactory\Managed\Providers\BluemixServiceProvider;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use DreamFactory\Managed\Services\ClusterService;
@@ -32,7 +32,7 @@ class ManagedInstance
     public function bootstrap(Application $app)
     {
         //  Detect the type of managed platform
-        if (null !== ( $this->platform = $this->detectPlatform() )) {
+        if (null !== ($this->platform = $this->detectPlatform())) {
             switch ($this->platform) {
                 case ManagedPlatforms::DREAMFACTORY:
                     $this->bootstrapDreamFactory($app);
@@ -61,7 +61,7 @@ class ManagedInstance
             return ManagedPlatforms::DREAMFACTORY;
         }
 
-        if (!empty( env('VCAP_SERVICES', []) )) {
+        if (!empty(env('VCAP_SERVICES', []))) {
             return ManagedPlatforms::BLUEMIX;
         }
 
@@ -95,7 +95,7 @@ class ManagedInstance
         }
 
         //  Throw in some paths
-        if (!empty( $_paths = $_cluster->getConfig('paths', []) )) {
+        if (!empty($_paths = $_cluster->getConfig('paths', []))) {
             foreach ($_paths as $_key => $_value) {
                 $_vars['DF_MANAGED_' . strtr(strtoupper($_key), '-', '_')] = $_value;
             }
@@ -108,8 +108,7 @@ class ManagedInstance
         /** @type Request $_request */
         $_request = $app->make('request');
         $_vars['DF_IS_VALID_CONSOLE_REQUEST'] =
-            ( $_vars['DF_CONSOLE_KEY'] ==
-                $_request->header(ManagedDefaults::CONSOLE_X_HEADER, $_request->query('console_key')) );
+            ($_vars['DF_CONSOLE_KEY'] == $_request->header(ManagedDefaults::CONSOLE_X_HEADER, $_request->query('console_key')));
 
         //  Now jam everything into the environment
         foreach ($_vars as $_key => $_value) {
@@ -139,12 +138,9 @@ class ManagedInstance
         ];
 
         //  Get the cluster database information
-        foreach ($_service->getDatabaseConfig(
-            env('BM_DB_SERVICE_KEY',BlueMixDefaults::BM_DB_SERVICE_KEY),
+        foreach ($_service->getDatabaseConfig(env('BM_DB_SERVICE_KEY', BlueMixDefaults::BM_DB_SERVICE_KEY),
             env('BM_DB_INDEX', BlueMixDefaults::BM_DB_INDEX),
-            env('BM_DB_CREDS_KEY', BlueMixDefaults::BM_DB_CREDS_KEY)
-            )
-        as $_key => $_value) {
+            env('BM_DB_CREDS_KEY', BlueMixDefaults::BM_DB_CREDS_KEY)) as $_key => $_value) {
             $_vars['DB_' . strtr(strtoupper($_key), '-', '_')] = $_value;
         }
 

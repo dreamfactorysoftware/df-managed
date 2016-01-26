@@ -2,7 +2,6 @@
 
 use DreamFactory\Library\Utility\Json;
 use DreamFactory\Managed\Contracts\ProvidesManagedDatabase;
-use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Enums\BlueMixDefaults;
 use DreamFactory\Managed\Exceptions\ManagedEnvironmentException;
 

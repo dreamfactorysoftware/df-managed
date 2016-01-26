@@ -26,7 +26,7 @@ class BluemixServiceProvider extends BaseServiceProvider
     public function register()
     {
         $this->app->singleton(static::IOC_NAME,
-            function ($app){
+            function ($app) {
                 return new BluemixService($app, ManagedPlatforms::BLUEMIX);
             });
     }
