@@ -88,9 +88,9 @@ class ImposeClusterLimits
             return $next($request);
         }
 
-        // Bail if this is the instance controller
+        // Bail if this is a console request
 
-        if ($request->segment(1) == "instance") {
+        if (env('DF_IS_VALID_CONSOLE_REQUEST', false)) {
             return $next($request);
         }
 
