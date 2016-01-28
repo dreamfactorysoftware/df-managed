@@ -2,6 +2,7 @@
 
 use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Managed\Contracts\HasMiddleware;
+use DreamFactory\Managed\Enums\BlueMixDefaults;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Enums\ManagedPlatforms;
 use DreamFactory\Managed\Providers\BluemixServiceProvider;
@@ -72,10 +73,17 @@ class ManagedInstance
      */
     protected function bootstrapDreamFactory($app)
     {
-        //  Get an instance of the cluster service
-        $app->register(new ClusterServiceProvider($app));
-        /** @type ClusterService $_cluster */
-        $_cluster = ClusterServiceProvider::service($app);
+        try {
+            //  Get an instance of the cluster service
+            $app->register(new ClusterServiceProvider($app));
+            /** @type ClusterService $_cluster */
+            $_cluster = ClusterServiceProvider::service($app);
+        } catch (\Exception $_ex) {
+            //  Cluster service not available, or misconfigured. No logger yet so just bail...
+            //error_log('[dfe.managed-instance.bootstrap] cluster service unavailable: ' . $_ex->getMessage() . PHP_EOL);
+
+            return false;
+        }
 
         $_vars = [
             'DF_CACHE_PREFIX'         => $_cluster->getCachePrefix(),
@@ -106,9 +114,8 @@ class ManagedInstance
         //  Is it a console request? Validate
         /** @type Request $_request */
         $_request = $app->make('request');
-        $_vars['DF_IS_VALID_CONSOLE_REQUEST'] =
-            ($_vars['DF_CONSOLE_KEY'] ==
-                $_request->header(ManagedDefaults::CONSOLE_X_HEADER, $_request->query('console_key')));
+        $_vars['DF_IS_VALID_CONSOLE_REQUEST'] = ($_vars['DF_CONSOLE_KEY'] == $_request->header(ManagedDefaults::CONSOLE_X_HEADER,
+                $_request->query('console_key')));
 
         //  Now jam everything into the environment
         foreach ($_vars as $_key => $_value) {
@@ -128,29 +135,35 @@ class ManagedInstance
      */
     protected function bootstrapBluemix($app)
     {
-        //  Get an instance of the cluster service
-        $app->register(new BluemixServiceProvider($app));
-        $_service = BluemixServiceProvider::service($app);
+        // Only need the Bluemix Service provider if the db driver is mysql
+        if (env('DB_DRIVER', 'mysql') == 'mysql') {
+            //  Get an instance of the cluster service
+            $app->register(new BluemixServiceProvider($app));
 
-        $_vars = [
-            'DB_DRIVER' => 'mysql',
-        ];
+            $_service = BluemixServiceProvider::service($app);
 
-        //  Get the cluster database information
-        foreach ($_service->getDatabaseConfig() as $_key => $_value) {
-            $_vars['DB_' . strtr(strtoupper($_key), '-', '_')] = $_value;
-        }
+            $_vars = [
+                'DB_DRIVER' => 'mysql',
+            ];
 
-        //  Now jam everything into the environment
-        foreach ($_vars as $_key => $_value) {
-            putenv($_key . '=' . $_value);
-            $_ENV[$_key] = $_value;
-            $_SERVER[$_key] = $_value;
-        }
+            //  Get the cluster database information
+            foreach ($_service->getDatabaseConfig(env('BM_DB_SERVICE_KEY', BlueMixDefaults::BM_DB_SERVICE_KEY),
+                env('BM_DB_INDEX', BlueMixDefaults::BM_DB_INDEX),
+                env('BM_DB_CREDS_KEY', BlueMixDefaults::BM_DB_CREDS_KEY)) as $_key => $_value) {
+                $_vars['DB_' . strtr(strtoupper($_key), '-', '_')] = $_value;
+            }
 
-        //  Finally, let the cluster service push some middleware onto the stack
-        if ($_service instanceof HasMiddleware) {
-            $_service->pushMiddleware($app->make('Illuminate\Contracts\Http\Kernel'));
+            //  Now jam everything into the environment
+            foreach ($_vars as $_key => $_value) {
+                putenv($_key . '=' . $_value);
+                $_ENV[$_key] = $_value;
+                $_SERVER[$_key] = $_value;
+            }
+
+            //  Finally, let the cluster service push some middleware onto the stack
+            if ($_service instanceof HasMiddleware) {
+                $_service->pushMiddleware($app->make('Illuminate\Contracts\Http\Kernel'));
+            }
         }
     }
 }

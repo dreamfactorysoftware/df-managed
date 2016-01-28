@@ -7,3 +7,4 @@ phpunit.xml
 phpdoc.xml
 composer.lock
 _ide_helper.php
+/.idea
