@@ -25,7 +25,7 @@ return [
     |
     */
 
-    'stores'  => [
+    'stores' => [
 
         'apc'       => [
             'driver' => 'apc',
@@ -42,17 +42,17 @@ return [
             'driver' => 'file',
             'path'   => env('DF_CACHE_PATH', storage_path('framework/cache')),
         ],
-    /*
-    |--------------------------------------------------------------------------
-    | Cache Stores
-    |--------------------------------------------------------------------------
-    |
-    | This is the cache store for API Limits used by DreamFactory Enterprise.
-    | If you change the cache driver from file to any other method, update the
-    | limit stores configuration to match.
-    |
-    */
-        'limits'      => [
+        /*
+        |--------------------------------------------------------------------------
+        | Cache Stores
+        |--------------------------------------------------------------------------
+        |
+        | This is the cache store for API Limits used by DreamFactory Enterprise.
+        | If you change the cache driver from file to any other method, update the
+        | limit stores configuration to match.
+        |
+        */
+        'limits'    => [
             'driver' => 'file',
             'path'   => env('DF_LIMITS_CACHE_PATH', storage_path('framework/cache')),
         ],
@@ -82,6 +82,6 @@ return [
     |
     */
 
-    'prefix'  =>  env('DF_CACHE_PREFIX', 'dreamfactory'),
+    'prefix' => env('DF_CACHE_PREFIX', 'dreamfactory'),
 
 ];
