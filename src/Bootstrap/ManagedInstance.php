@@ -80,6 +80,8 @@ class ManagedInstance
             $_cluster = ClusterServiceProvider::service($app);
         } catch (\Exception $_ex) {
             //  Cluster service not available, or misconfigured. No logger yet so just bail...
+            //error_log('[dfe.managed-instance.bootstrap] cluster service unavailable: ' . $_ex->getMessage() . PHP_EOL);
+
             return false;
         }
 
