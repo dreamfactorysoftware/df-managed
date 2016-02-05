@@ -13,21 +13,29 @@ class BlueMixDefaults extends FactoryEnum
     //******************************************************************************
 
     /**
-     * @type string The environment variable that holds the credentials for the database
+     * @type string The environment variable that holds the Bluemix service configurations
      */
     const BM_ENV_KEY = 'VCAP_SERVICES';
     /**
-     * @type string The name of the key containing the database
+     * @type string The name of the key containing the database configuration
      */
     const BM_DB_SERVICE_KEY = 'user-provided';
     /**
-     * @type int The index of the database to use
+     * @type int The index of the database config to use
      */
     const BM_DB_INDEX = 0;
     /**
      * @type string The name of the key containing the credentials
      */
-    const BM_DB_CREDS_KEY = 'credentials';
+    const BM_CREDS_KEY = 'credentials';
+    /**
+     * @type string The name of the key containing the redis configuration
+     */
+    const BM_REDIS_SERVICE_KEY = 'rediscloud';
+    /**
+     * @type int The index of the redis config to use
+     */
+    const BM_REDIS_INDEX = 0;
     /**
      * @type string Cache key in the config
      */
