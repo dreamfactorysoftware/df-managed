@@ -22,7 +22,7 @@ class ClusterAuditor
     public function handle($request, Closure $next)
     {
         //  Don't log console requests
-        if (env('DF_IS_VALID_CONSOLE_REQUEST', false)) {
+        if (!env('DF_IS_VALID_CONSOLE_REQUEST', false)) {
             try {
                 try {
                     $_session = Session::getPublicInfo();
