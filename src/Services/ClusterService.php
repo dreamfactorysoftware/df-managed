@@ -74,10 +74,9 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     }
 
     /**
-     * Get the cluster manifest and interrogate the cluster.  Moved to it's own method so it can be called by
-     * both the boot method and from the Instance Controller
+     * Get the cluster manifest and interrogate the cluster.
+     * Moved to it's own method so it can be called by both the boot method and from the Instance Controller
      */
-
     public function setup()
     {
         //  Get the manifest
@@ -92,10 +91,8 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         } catch (\Exception $_ex) {
             $this->reset();
 
-                throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(), $_ex->getCode(), $_ex);
+            throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(), $_ex->getCode(), $_ex);
         }
-
-        return true;
     }
 
     /** @inheritdoc */

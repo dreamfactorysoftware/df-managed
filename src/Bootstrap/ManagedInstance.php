@@ -32,7 +32,7 @@ class ManagedInstance
     public function bootstrap(Application $app)
     {
         //  Detect the type of managed platform
-        if (null !== ($this->platform = $this->detectPlatform())) {
+        if (null !== ( $this->platform = $this->detectPlatform() )) {
             switch ($this->platform) {
                 case ManagedPlatforms::DREAMFACTORY:
                     $this->bootstrapDreamFactory($app);
@@ -61,7 +61,7 @@ class ManagedInstance
             return ManagedPlatforms::DREAMFACTORY;
         }
 
-        if (!empty(env('VCAP_SERVICES', []))) {
+        if (!empty( env('VCAP_SERVICES', []) )) {
             return ManagedPlatforms::BLUEMIX;
         }
 
@@ -78,7 +78,7 @@ class ManagedInstance
             $app->register(new ClusterServiceProvider($app));
             /** @type ClusterService $_cluster */
             $_cluster = ClusterServiceProvider::service($app);
-        } catch (\Exception $_ex) {
+        } catch ( \Exception $_ex ) {
             //  Cluster service not available, or misconfigured. No logger yet so just bail...
             //error_log('[dfe.managed-instance.bootstrap] cluster service unavailable: ' . $_ex->getMessage() . PHP_EOL);
 
@@ -102,7 +102,7 @@ class ManagedInstance
         }
 
         //  Throw in some paths
-        if (!empty($_paths = $_cluster->getConfig('paths', []))) {
+        if (!empty( $_paths = $_cluster->getConfig('paths', []) )) {
             foreach ($_paths as $_key => $_value) {
                 $_vars['DF_MANAGED_' . strtr(strtoupper($_key), '-', '_')] = $_value;
             }
@@ -114,8 +114,10 @@ class ManagedInstance
         //  Is it a console request? Validate
         /** @type Request $_request */
         $_request = $app->make('request');
-        $_vars['DF_IS_VALID_CONSOLE_REQUEST'] = ($_vars['DF_CONSOLE_KEY'] == $_request->header(ManagedDefaults::CONSOLE_X_HEADER,
-                $_request->query('console_key')));
+        $_vars['DF_IS_VALID_CONSOLE_REQUEST'] = ( $_vars['DF_CONSOLE_KEY'] == $_request->header(
+                ManagedDefaults::CONSOLE_X_HEADER,
+                $_request->query('console_key')
+            ) );
 
         //  Now jam everything into the environment
         foreach ($_vars as $_key => $_value) {
@@ -135,35 +137,47 @@ class ManagedInstance
      */
     protected function bootstrapBluemix($app)
     {
+        //  Get an instance of the cluster service
+        $app->register(new BluemixServiceProvider($app));
+
+        $_service = BluemixServiceProvider::service($app);
         // Only need the Bluemix Service provider if the db driver is mysql
         if (env('DB_DRIVER', 'mysql') == 'mysql') {
-            //  Get an instance of the cluster service
-            $app->register(new BluemixServiceProvider($app));
-
-            $_service = BluemixServiceProvider::service($app);
-
             $_vars = [
                 'DB_DRIVER' => 'mysql',
             ];
 
-            //  Get the cluster database information
-            foreach ($_service->getDatabaseConfig(env('BM_DB_SERVICE_KEY', BlueMixDefaults::BM_DB_SERVICE_KEY),
+            //  Get the Bluemix database information
+            foreach ($_service->getDatabaseConfig(
+                env('BM_DB_SERVICE_KEY', BlueMixDefaults::BM_DB_SERVICE_KEY),
                 env('BM_DB_INDEX', BlueMixDefaults::BM_DB_INDEX),
-                env('BM_DB_CREDS_KEY', BlueMixDefaults::BM_DB_CREDS_KEY)) as $_key => $_value) {
+                env('BM_DB_CREDS_KEY', BlueMixDefaults::BM_CREDS_KEY)
+            ) as $_key => $_value) {
                 $_vars['DB_' . strtr(strtoupper($_key), '-', '_')] = $_value;
             }
+        }
 
-            //  Now jam everything into the environment
-            foreach ($_vars as $_key => $_value) {
-                putenv($_key . '=' . $_value);
-                $_ENV[$_key] = $_value;
-                $_SERVER[$_key] = $_value;
+        if (env('CACHE_DRIVER', 'file') == 'redis') {
+            //  Get the Bluemix Redis information
+            foreach ($_service->getRedisConfig(
+                env('BM_REDIS_SERVICE_KEY', BlueMixDefaults::BM_REDIS_SERVICE_KEY),
+                env('BM_REDIS_INDEX', BlueMixDefaults::BM_REDIS_INDEX),
+                env('BM_CREDS_KEY', BlueMixDefaults::BM_CREDS_KEY)
+            ) as $_key => $_value) {
+                $_vars['REDIS_' . strtr(strtoupper($_key), '-', '_')] = $_value;
             }
+        }
 
-            //  Finally, let the cluster service push some middleware onto the stack
-            if ($_service instanceof HasMiddleware) {
-                $_service->pushMiddleware($app->make('Illuminate\Contracts\Http\Kernel'));
-            }
+        //  Now jam everything into the environment
+        foreach ($_vars as $_key => $_value) {
+            putenv($_key . '=' . $_value);
+            $_ENV[$_key] = $_value;
+            $_SERVER[$_key] = $_value;
+        }
+
+        //  Finally, let the cluster service push some middleware onto the stack
+        if ($_service instanceof HasMiddleware) {
+            $_service->pushMiddleware($app->make('Illuminate\Contracts\Http\Kernel'));
         }
     }
 }
