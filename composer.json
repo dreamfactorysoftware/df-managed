@@ -1,47 +1,47 @@
 {
-  "name":              "dreamfactory/df-managed",
-  "description":       "DreamFactory(tm) Managed Service Library",
-  "homepage":          "https://www.dreamfactory.com/",
-  "keywords":          [
-    "dreamfactory",
-    "enterprise",
-    "manager",
-    "remote"
-  ],
-  "license":           [
-    "Apache-2.0"
-  ],
-  "authors":           [
-    {
-      "name":  "Jerry Ablan",
-      "email": "jerryablan@dreamfactory.com"
+    "name":              "dreamfactory/df-managed",
+    "description":       "DreamFactory(tm) Managed Service Library",
+    "homepage":          "https://www.dreamfactory.com/",
+    "keywords":          [
+        "dreamfactory",
+        "enterprise",
+        "manager",
+        "remote"
+    ],
+    "license":           [
+        "Apache-2.0"
+    ],
+    "authors":           [
+        {
+            "name":  "Jerry Ablan",
+            "email": "jerryablan@dreamfactory.com"
+        },
+        {
+            "name":  "David L. Weiner",
+            "email": "davidweiner@dreamfactory.com"
+        },
+        {
+            "name":  "Arif Islam",
+            "email": "arifislam@dreamfactory.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable":     true,
+    "require":           {
+        "dreamfactory/php-utils": "1.1.*"
     },
-    {
-      "name":  "David L. Weiner",
-      "email": "davidweiner@dreamfactory.com"
+    "require-dev":       {
+        "phpunit/phpunit":   "@stable",
+        "laravel/framework": "5.1.*"
     },
-    {
-      "name":  "Arif Islam",
-      "email": "arifislam@dreamfactory.com"
+    "autoload":          {
+        "psr-4": {
+            "DreamFactory\\Managed\\": "src/"
+        }
+    },
+    "extra":             {
+        "branch-alias": {
+            "dev-develop": "2.0.x-dev"
+        }
     }
-  ],
-  "minimum-stability": "dev",
-  "require":           {
-    "dreamfactory/php-utils": "1.1.*"
-  },
-  "require-dev":       {
-    "laravel/laravel":      "5.1.*",
-    "phpunit/phpunit":      "@stable",
-    "dreamfactory/df-core": "0.2.*"
-  },
-  "autoload":          {
-    "psr-4": {
-      "DreamFactory\\Managed\\": "src/"
-    }
-  },
-  "extra":             {
-    "branch-alias": {
-      "dev-develop": "2.0.x-dev"
-    }
-  }
 }

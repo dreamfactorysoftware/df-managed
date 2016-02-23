@@ -1,97 +1,139 @@
 <?php namespace DreamFactory\Managed\Http\Controllers;
 
+use DreamFactory\Core\Models\User;
+use DreamFactory\Managed\Exceptions\ManagedInstanceException;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
-use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Http\Middleware\ImposeClusterLimits;
+use DreamFactory\Managed\Services\ClusterService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redirect;
 
-class InstanceController extends Controller
+class InstanceController extends BaseController
 {
+    //******************************************************************************
+    //* Methods
+    //******************************************************************************
 
-    function __construct()
+    /*** Constructor */
+    public function __construct()
     {
         $this->middleware('access_check');
     }
 
     /**
-     * Respond to /instance/refresh-config
-     */
-
-    public function getIndex()
-    {
-
-    }
-
-    /**
-     * Tell an instance to contact the console and get a fresh copy of it's configuration
-     *
-     * Responds to /instance/refresh
+     * Tell an instance to contact the console and get a fresh copy of it's configuration.
+     * Endpoint handler for PUT /instance/refresh
      *
      * @return array
      */
     public function putRefresh()
     {
+        $_result = true;
+
         // Get an instance of the Cluster Service Provider
+        /** @type ClusterService $_cluster */
         $_cluster = ClusterServiceProvider::service();
 
-        // Force the instance to pull the config from the console
-        logger('Instance configuration refresh initiated by console');
+        try {
+            // Force the instance to pull the config from the console
+            logger('[df-managed.instance-controller] instance configuration refresh initiated by console');
 
-        $retval = $_cluster->setup();
+            $_cluster->setup();
+        } catch (ManagedInstanceException $_ex) {
+            $_result = false;
+        }
 
-        return ['success' => $retval];
+        return response()->json(['success' => $_result]);
+    }
+
+    /**
+     * Validates and processes a FastTrack request. An HTTP redirect is performed at the end of the method.
+     * Endpoint handler for POST /instance/fast-track
+     *
+     * @param \Illuminate\Http\Request $request
+     *
+     * @return RedirectResponse
+     */
+    public function postFastTrack(Request $request)
+    {
+        //  Valid request?
+        if (null !== ($_guid = $request->query('fastTrackGuid'))) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            if (null !== ($_user = User::whereRaw('SHA1(CONCAT(email,first_name,last_name)) = :guid', [':guid' => $_guid])->first())) {
+                logger('[df-managed.instance-controller.fast-track] received guid "' . $_guid . '"/"' . $_user->email . '" user id#' . $_user->id);
+
+                //  Ok, now we have a user, we need to log their buttocks in...
+                /** @noinspection PhpUndefinedMethodInspection */
+                Auth::login($_user);
+
+                logger('[df-managed.instance-controller.fast-track] login "' . $_user->email . '"');
+
+                return Redirect::to('/');
+            } else {
+                logger('[df-managed.instance-controller.fast-track] invalid guid received "' . $_guid . '"');
+            }
+        }
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        return Redirect::to('/auth/login');
     }
 
     /**
      * Tell an instance to delete a single limits counter from the cache
+     * Endpoint handler for /instance/clear-limits-counter/<cache-key>
      *
-     * Respond to /instance/clearlimitscounter/<cache-key>
+     * @param string $cacheKey The cache key to delete (i.e., "cluster-dfelocal.test1.minute", "cluster-dfelocal.hour", etc.)
      *
-     * Where <cache-key> is a string value such as cluster-dfelocal.test1.minute or cluster-dfelocal.hour
-     *
-     * @return array
+     * @return Response
      */
-
-    public function deleteClearlimitscounter($cacheKey)
+    public function deleteClearLimitsCounter($cacheKey)
     {
-
-        $dfCachePrefix = env('DF_CACHE_PREFIX');
+        $_cachePrefix = env('DF_CACHE_PREFIX');
         putenv('DF_CACHE_PREFIX' . '=' . 'df_limits');
         $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
 
         try {
-            $cache = ImposeClusterLimits::cache();
-            $cache->forget($cacheKey);
-            logger('Limit count for ' . $cacheKey . ' reset initiated by console');
-
-        } catch (\Exception $e) {
-            logger('Error clearing limit count : ' . print_r($e->getMessage(), true));
-        } finally {
+            ImposeClusterLimits::cache()->forget($cacheKey);
+            logger('[df-managed.instance-controller] "' . $cacheKey . '" limit count reset by console');
+        } catch (\Exception $_ex) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('[df-managed.instance-controller] exception clearing limit count: ' . $_ex->getMessage());
+        }
+        finally {
             //  Ensure the cache prefix is restored
-            putenv('DF_CACHE_PREFIX' . '=' . $dfCachePrefix);
-            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $dfCachePrefix;
-            return ['success' => true];
+            putenv('DF_CACHE_PREFIX' . '=' . $_cachePrefix);
+            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
+
+            return response()->json(['success' => true]);
         }
     }
 
-
-    public function deleteClearlimitscache()
+    /**
+     * @return array
+     */
+    public function deleteClearLimitsCache()
     {
-        $dfCachePrefix = env('DF_CACHE_PREFIX');
+        $_cachePrefix = env('DF_CACHE_PREFIX');
         putenv('DF_CACHE_PREFIX' . '=' . 'df_limits');
         $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
 
         try {
-            $cache = ImposeClusterLimits::cache();
-            $cache->flush();
-            logger('Limits cache clear initiated by console');
-
-        } catch (\Exception $e) {
-            logger('Error clearing limits cache : ' . print_r($e->getMessage(), true));
-        } finally {
+            ImposeClusterLimits::cache()->flush();
+            logger('[df-managed.instance-controller] limit cache flushed by console');
+        } catch (\Exception $_ex) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('[df-managed.instance-controller] exception clearing limit cache: ' . $_ex->getMessage());
+        }
+        finally {
             //  Ensure the cache prefix is restored
-            putenv('DF_CACHE_PREFIX' . '=' . $dfCachePrefix);
-            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $dfCachePrefix;
-            return ['success' => true];
+            putenv('DF_CACHE_PREFIX' . '=' . $_cachePrefix);
+            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
+
+            return response()->json(['success' => true]);
         }
     }
 }

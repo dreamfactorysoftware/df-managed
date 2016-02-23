@@ -244,6 +244,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             //  Get the database config plucking the first entry if one.
             'db'            => (array)head((array)data_get($_status, 'response.metadata.db', [])),
             'limits'        => (array)data_get($_status, 'response.metadata.limits', []),
+            'overrides'     => (array)data_get($_status, 'response.overrides', []),
         ]);
 
         //  Add in our middleware
@@ -538,5 +539,24 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     public function getLimits($key = null, $default = [])
     {
         return $this->getConfig((null === $key) ? 'limits' : 'limits.' . $key, $default);
+    }
+
+    /**
+     * Returns any values to be overwritten.
+     *
+     * @param string     $key     The key to pull. NULL returns all keys in an array
+     * @param mixed|null $default The default value to return if key does not exist
+     *
+     * @return array|mixed
+     */
+    public function getOverride($key = null, $default = null)
+    {
+        $_overrides = $this->getConfig('overrides', []);
+
+        if (null === $key) {
+            return $_overrides;
+        }
+
+        return array_get($_overrides, $key, $default);
     }
 }

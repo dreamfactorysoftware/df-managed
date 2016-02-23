@@ -24,7 +24,7 @@ class ClusterManifest extends Collection
     /**
      * @param ClusterService $cluster
      */
-    public function __construct(ClusterService $cluster)
+    public function w__construct(ClusterService $cluster)
     {
         parent::__construct();
 

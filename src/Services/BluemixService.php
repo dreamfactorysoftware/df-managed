@@ -33,15 +33,12 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
      * @return array|bool
      * @throws \DreamFactory\Managed\Exceptions\ManagedEnvironmentException
      */
-    public function getDatabaseConfig(
-        $service = BlueMixDefaults::BM_DB_SERVICE_KEY,
-        $index = BlueMixDefaults::BM_DB_INDEX,
-        $subkey = BlueMixDefaults::BM_CREDS_KEY
-    ) {
+    public function getDatabaseConfig($service = BlueMixDefaults::BM_DB_SERVICE_KEY, $index = BlueMixDefaults::BM_DB_INDEX, $subkey = BlueMixDefaults::BM_CREDS_KEY)
+    {
         //  Decode and examine
         try {
 
-            if (!empty( $_config = $this->_getServiceConfig($service, $index, $subkey) )) {
+            if (!empty($_config = $this->getServiceConfig($service, $index, $subkey))) {
 
                 return [
                     'driver'    => 'mysql',
@@ -57,7 +54,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
                     'strict'    => false,
                 ];
             }
-        } catch ( \InvalidArgumentException $_ex ) {
+        } catch (\InvalidArgumentException $_ex) {
             //  Environment not set correctly for this deployment
         }
 
@@ -73,15 +70,12 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
      * @return array|bool
      * @throws \DreamFactory\Managed\Exceptions\ManagedEnvironmentException
      */
-    public function getRedisConfig(
-        $service = BlueMixDefaults::BM_REDIS_SERVICE_KEY,
-        $index = BlueMixDefaults::BM_REDIS_INDEX,
-        $subkey = BlueMixDefaults::BM_CREDS_KEY
-    ) {
+    public function getRedisConfig($service = BlueMixDefaults::BM_REDIS_SERVICE_KEY, $index = BlueMixDefaults::BM_REDIS_INDEX, $subkey = BlueMixDefaults::BM_CREDS_KEY)
+    {
         //  Decode and examine
         try {
 
-            if (!empty( $_config = $this->_getServiceConfig($service, $index, $subkey) )) {
+            if (!empty($_config = $this->getServiceConfig($service, $index, $subkey))) {
 
                 return [
                     //  Check for 'host', then 'hostname', default to '127.0.0.1'
@@ -91,7 +85,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
                     'port'     => $_config['port'],
                 ];
             }
-        } catch ( \InvalidArgumentException $_ex ) {
+        } catch (\InvalidArgumentException $_ex) {
             //  Environment not set correctly for this deployment
         }
 
@@ -107,28 +101,28 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
      * @return array|bool
      * @throws \DreamFactory\Managed\Exceptions\ManagedEnvironmentException
      */
-    private function _getServiceConfig($service, $index, $subkey)
+    protected function getServiceConfig($service, $index, $subkey)
     {
         //  Decode and examine
         try {
             /** @type string $_envData */
             $_envData = getenv(BlueMixDefaults::BM_ENV_KEY);
 
-            if (!empty( $_availableServices = Json::decode($_envData, true) )) {
+            if (!empty($_availableServices = Json::decode($_envData, true))) {
                 $_serviceSet = array_get($_availableServices, $service);
 
                 //  Get credentials environment data
-                $_config = array_get(isset( $_serviceSet[$index] ) ? $_serviceSet[$index] : [], $subkey, []);
+                $_config = array_get(isset($_serviceSet[$index]) ? $_serviceSet[$index] : [], $subkey, []);
 
-                if (empty( $_config )) {
+                if (empty($_config)) {
                     throw new \RuntimeException('Service credentials not found in env: ' . print_r($_serviceSet, true));
                 }
 
-                unset( $_envData, $_serviceSet );
+                unset($_envData, $_serviceSet);
 
                 return $_config;
             }
-        } catch ( \InvalidArgumentException $_ex ) {
+        } catch (\InvalidArgumentException $_ex) {
             //  Environment not set correctly for this deployment
         }
 

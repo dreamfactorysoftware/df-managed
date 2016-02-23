@@ -8,8 +8,8 @@ use DreamFactory\Core\Utility\Session;
 use DreamFactory\Managed\Contracts\ProvidesManagedLimits;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
-use Illuminate\Cache\Repository;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ImposeClusterLimits
 {
@@ -39,7 +39,7 @@ class ImposeClusterLimits
     /**
      * Get the limits cache
      *
-     * @return \Illuminate\Cache\Repository
+     * @return mixed
      */
     static function cache()
     {
@@ -53,12 +53,13 @@ class ImposeClusterLimits
                 config([
                     'cache.stores.' . $_store => [
                         'driver' => 'file',
-                        'path' => env('DF_LIMITS_CACHE_PATH', storage_path('framework/cache')),
+                        'path'   => env('DF_LIMITS_CACHE_PATH', storage_path('framework/cache')),
                     ],
                 ]);
             }
 
             //  Create the cache
+            /** @noinspection PhpUndefinedMethodInspection */
             $repository = app('cache')->store($_store);
         }
 
@@ -69,7 +70,7 @@ class ImposeClusterLimits
      * Handle an incoming request.
      *
      * @param  \Illuminate\Http\Request $request
-     * @param  \Closure $next
+     * @param  \Closure                 $next
      *
      * @return mixed
      */
@@ -108,7 +109,7 @@ class ImposeClusterLimits
             /**
              * dfe-console now saves the new style limits, but just in case something didn't get updated, replace it
              *
-             * While we're at it, replace any occurance of each_instance with each_instance|instance_name and each_user
+             * While we're at it, replace any occurrence of each_instance with each_instance|instance_name and each_user
              * with each_user|user:userID.  A pipe | was used because the user id already has a colon in it, just in
              * case the individual tokens need to be tokenized further
              */
@@ -141,8 +142,8 @@ class ImposeClusterLimits
              */
 
             !$this->preg_array_key_exists($limits['api'],
-                '/^' . $clusterName . '\.' . $instanceName . '\.' . implode('|', $this->periods) . '/'
-            ) && $apiKeysToCheck[$clusterName . '.each_instance|' . $instanceName] = 1;
+                '/^' . $clusterName . '\.' . $instanceName . '\.' . implode('|', $this->periods) . '/') &&
+            $apiKeysToCheck[$clusterName . '.each_instance|' . $instanceName] = 1;
 
             if (!$this->preg_array_key_exists($limits['api'], '/^' . $clusterName . '\.' . $instanceName . '\.' . $userId . '/')) {
                 $apiKeysToCheck[$clusterName . '.each_instance|' . $instanceName . '.' . 'each_user|' . $userId] = 1;
@@ -274,8 +275,8 @@ class ImposeClusterLimits
     }
 
     /**
-     * @param string $stub
-     * @param string $testName
+     * @param string      $stub
+     * @param string      $testName
      * @param string|null $value
      * @param string|null $default
      *
@@ -293,8 +294,10 @@ class ImposeClusterLimits
     /**
      * Return true if at least one array_key exits and matches the supplied pattern
      *
-     * @param $array Array to check
-     * @param $pattern Perl Regex Pattern
+     * @param array  $array   Array to check
+     * @param string $pattern Perl Regex Pattern
+     *
+     * @return bool
      */
     protected function preg_array_key_exists($array, $pattern)
     {
