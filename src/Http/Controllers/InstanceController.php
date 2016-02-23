@@ -61,7 +61,7 @@ class InstanceController extends BaseController
     public function postFastTrack(Request $request)
     {
         //  Valid request?
-        if (null !== ($_guid = $request->query('fastTrackGuid'))) {
+        if (null !== ($_guid = env('DF_FAST_TRACK_GUID', $request->query('fastTrackGuid')))) {
             /** @noinspection PhpUndefinedMethodInspection */
             if (null !== ($_user = User::whereRaw('SHA1(CONCAT(email,first_name,last_name)) = :guid', [':guid' => $_guid])->first())) {
                 logger('[df-managed.instance-controller.fast-track] received guid "' . $_guid . '"/"' . $_user->email . '" user id#' . $_user->id);
@@ -72,6 +72,7 @@ class InstanceController extends BaseController
 
                 logger('[df-managed.instance-controller.fast-track] login "' . $_user->email . '"');
 
+                /** @noinspection PhpUndefinedMethodInspection */
                 return Redirect::to('/');
             } else {
                 logger('[df-managed.instance-controller.fast-track] invalid guid received "' . $_guid . '"');

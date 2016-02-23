@@ -83,7 +83,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         $_manifest = new ClusterManifest($this);
 
         //  Seed our config with the manifest
-        $this->config = $_manifest->toArray();
+        $this->config = (array)$_manifest->toArray();
 
         try {
             //  Now let's discover our secret powers...
