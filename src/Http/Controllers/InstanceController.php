@@ -2,6 +2,7 @@
 
 use DreamFactory\Core\Models\User;
 use DreamFactory\Managed\Exceptions\ManagedInstanceException;
+use DreamFactory\Managed\Facades\Cluster;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use DreamFactory\Managed\Http\Middleware\ImposeClusterLimits;
 use DreamFactory\Managed\Services\ClusterService;
@@ -47,6 +48,7 @@ class InstanceController extends BaseController
             $_result = false;
         }
 
+        /** @noinspection PhpUndefinedMethodInspection */
         return response()->json(['success' => $_result]);
     }
 
@@ -109,6 +111,7 @@ class InstanceController extends BaseController
             putenv('DF_CACHE_PREFIX' . '=' . $_cachePrefix);
             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
 
+            /** @noinspection PhpUndefinedMethodInspection */
             return response()->json(['success' => true]);
         }
     }
@@ -134,7 +137,19 @@ class InstanceController extends BaseController
             putenv('DF_CACHE_PREFIX' . '=' . $_cachePrefix);
             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
 
+            /** @noinspection PhpUndefinedMethodInspection */
             return response()->json(['success' => true]);
         }
+    }
+
+    /**
+     * Deletes all cached managed data for instance
+     *
+     * @return Response
+     */
+    public function deleteManagedDataCache()
+    {
+        /** @noinspection PhpUndefinedMethodInspection */
+        return response()->json(['success' => Cluster::deleteManagedDataCache()]);
     }
 }

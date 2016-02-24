@@ -27,6 +27,7 @@ use Illuminate\Routing\Controller;
  * @method static array|null getLimits($key = null, $default = [])
  * @method static HasMiddleware pushMiddleware(Kernel $kernel)
  * @method static HasRouteMiddleware pushRouteMiddleware(Controller $controller)
+ * @method static bool deleteManagedDataCache()
  */
 class Cluster extends BaseFacade
 {

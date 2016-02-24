@@ -95,6 +95,20 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         }
     }
 
+    /**
+     * Removes any cached managed data
+     *
+     * @return bool
+     */
+    public function deleteManagedDataCache()
+    {
+        if (file_exists($_cacheFile = $this->getCacheFile())) {
+            return @unlink($_cacheFile);
+        }
+
+        return true;
+    }
+
     /** @inheritdoc */
     public function addManagedRoutes(Router $router)
     {
@@ -130,9 +144,8 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     protected function loadCachedValues()
     {
         $_cached = null;
-        $_cacheFile = Disk::path([$this->getCachePath(true), $this->getCacheKey()]);
 
-        if (file_exists($_cacheFile)) {
+        if (file_exists($_cacheFile = $this->getCacheFile())) {
             $_cached = JsonFile::decodeFile($_cacheFile);
 
             if (isset($_cached, $_cached['.expires']) && $_cached['.expires'] < time()) {
@@ -558,5 +571,13 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         }
 
         return array_get($_overrides, $key, $default);
+    }
+
+    /**
+     * @return string The cache file name for this instance
+     */
+    protected function getCacheFile()
+    {
+        return Disk::path([$this->getCachePath(true), $this->getCacheKey()]);
     }
 }
