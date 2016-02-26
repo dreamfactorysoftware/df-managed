@@ -22,7 +22,7 @@ class InstanceController extends BaseController
     /*** Constructor */
     public function __construct()
     {
-        $this->middleware('access_check');
+        $this->middleware('access_check', ['except' => ['getFastTrack']]);
     }
 
     /**
@@ -49,21 +49,21 @@ class InstanceController extends BaseController
         }
 
         /** @noinspection PhpUndefinedMethodInspection */
-        return response()->json(['success' => $_result]);
+        return Response::json(['success' => $_result]);
     }
 
     /**
-     * Validates and processes a FastTrack request. An HTTP redirect is performed at the end of the method.
-     * Endpoint handler for POST /instance/fast-track
+     * Validates and processes a FastTrack login request. An HTTP redirect is performed at the end of the method.
+     * Endpoint handler for GET /instance/fast-track
      *
      * @param \Illuminate\Http\Request $request
      *
      * @return RedirectResponse
      */
-    public function postFastTrack(Request $request)
+    public function getFastTrack(Request $request)
     {
         //  Valid request?
-        if (null !== ($_guid = env('DF_FAST_TRACK_GUID', $request->query('fastTrackGuid')))) {
+        if (null !== ($_guid = env('DF_FAST_TRACK_GUID'))) {
             /** @noinspection PhpUndefinedMethodInspection */
             if (null !== ($_user = User::whereRaw('SHA1(CONCAT(email,first_name,last_name)) = :guid', [':guid' => $_guid])->first())) {
                 logger('[df-managed.instance-controller.fast-track] received guid "' . $_guid . '"/"' . $_user->email . '" user id#' . $_user->id);
@@ -80,6 +80,9 @@ class InstanceController extends BaseController
                 logger('[df-managed.instance-controller.fast-track] invalid guid received "' . $_guid . '"');
             }
         }
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        Log::error('[df-managed.instance-controller.fast-track] invalid fast-track request received');
 
         /** @noinspection PhpUndefinedMethodInspection */
         return Redirect::to('/auth/login');
@@ -112,7 +115,7 @@ class InstanceController extends BaseController
             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
 
             /** @noinspection PhpUndefinedMethodInspection */
-            return response()->json(['success' => true]);
+            return Response::json(['success' => true]);
         }
     }
 
@@ -138,7 +141,7 @@ class InstanceController extends BaseController
             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
 
             /** @noinspection PhpUndefinedMethodInspection */
-            return response()->json(['success' => true]);
+            return Response::json(['success' => true]);
         }
     }
 
@@ -150,6 +153,6 @@ class InstanceController extends BaseController
     public function deleteManagedDataCache()
     {
         /** @noinspection PhpUndefinedMethodInspection */
-        return response()->json(['success' => Cluster::deleteManagedDataCache()]);
+        return Response::json(['success' => Cluster::deleteManagedDataCache()]);
     }
 }
