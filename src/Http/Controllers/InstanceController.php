@@ -63,26 +63,30 @@ class InstanceController extends BaseController
     public function getFastTrack(Request $request)
     {
         //  Valid request?
-        if (null !== ($_guid = env('DF_FAST_TRACK_GUID'))) {
+        if (true !== config('managed.enable-fast-track', false) && null !== ($_guid = env('DF_FAST_TRACK_GUID'))) {
             /** @noinspection PhpUndefinedMethodInspection */
             if (null !== ($_user = User::whereRaw('SHA1(CONCAT(email,first_name,last_name)) = :guid', [':guid' => $_guid])->first())) {
                 logger('[df-managed.instance-controller.fast-track] received guid "' . $_guid . '"/"' . $_user->email . '" user id#' . $_user->id);
 
                 //  Ok, now we have a user, we need to log their buttocks in...
                 /** @noinspection PhpUndefinedMethodInspection */
-                Auth::login($_user);
+                if (Auth::login($_user)) {
+                    logger('[df-managed.instance-controller.fast-track] login "' . $_user->email . '"');
 
-                logger('[df-managed.instance-controller.fast-track] login "' . $_user->email . '"');
-
-                /** @noinspection PhpUndefinedMethodInspection */
-                return Redirect::to('/');
+                    /** @noinspection PhpUndefinedMethodInspection */
+                    return Redirect::to('/');
+                } else {
+                    /** @noinspection PhpUndefinedMethodInspection */
+                    Log::error('[df-managed.instance-controller.fast-track] login failed for "' . $_guid . '"');
+                }
             } else {
-                logger('[df-managed.instance-controller.fast-track] invalid guid received "' . $_guid . '"');
+                /** @noinspection PhpUndefinedMethodInspection */
+                Log::error('[df-managed.instance-controller.fast-track] invalid guid received "' . $_guid . '"');
             }
+        } else {
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('[df-managed.instance-controller.fast-track] invalid fast-track request received');
         }
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        Log::error('[df-managed.instance-controller.fast-track] invalid fast-track request received');
 
         /** @noinspection PhpUndefinedMethodInspection */
         return Redirect::to('/auth/login');
