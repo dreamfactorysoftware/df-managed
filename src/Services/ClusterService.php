@@ -613,12 +613,12 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     public function handleLoginRequest(Request $request)
     {
         //  Validate request, police the controller
-        if (!config('managed.enable-fast-track', false) || null === ($_guid = $request->input('fastTrackGuid'))) {
+        if (!config('managed.enable-fast-track', false) || null === ($_guid = $request->get('fastTrackGuid'))) {
             /** @noinspection PhpUndefinedMethodInspection */
             Log::error('[df-managed.instance-controller.fast-track] invalid request');
 
             //  Play dumb, good cop
-            return new NotFoundException();
+            return new Response(null, Response::HTTP_NOT_FOUND);
         }
 
         /** @noinspection PhpUndefinedMethodInspection
@@ -632,7 +632,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             Log::error('[df-managed.instance-controller.fast-track] login failed for "' . $_guid . '"');
 
             //  Quit it, Bad cop
-            return new UnauthorizedException();
+            return new Response(null, Response::HTTP_UNAUTHORIZED);
         }
 
         logger('[df-managed.instance-controller.fast-track] received guid "' . $_guid . '"/"' . $_user->email . '" user id#' . $_user->id);
