@@ -1,5 +1,12 @@
 <?php namespace DreamFactory\Managed\Services;
 
+use Carbon\Carbon;
+use DreamFactory\Core\Exceptions\ForbiddenException;
+use DreamFactory\Core\Exceptions\NotFoundException;
+use DreamFactory\Core\Exceptions\UnauthorizedException;
+use DreamFactory\Core\Models\Role;
+use DreamFactory\Core\Models\User;
+use DreamFactory\Core\Utility\Session;
 use DreamFactory\Library\Utility\Curl;
 use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Library\Utility\JsonFile;
@@ -16,6 +23,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redirect;
 
 /**
  * A service that interacts with the DFE console
@@ -579,5 +588,66 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     protected function getCacheFile()
     {
         return Disk::path([$this->getCachePath(true), $this->getCacheKey()]);
+    }
+
+    /**
+     * @param int $userId
+     *
+     * @throws \DreamFactory\Core\Exceptions\ForbiddenException
+     */
+    protected function validateRoleAccess($userId)
+    {
+        if (!empty($_appId = Session::get('app.id', null))) {
+            $_roleId = Session::getRoleIdByAppIdAndUserId($_appId, $userId);
+            if (!array_get(Role::getCachedInfo($_roleId, null, []) ?: [], 'is_active', false)) {
+                throw new ForbiddenException('Role is not active.');
+            }
+        }
+    }
+
+    /**
+     * @param \Illuminate\Http\Request $request
+     *
+     * @return \Illuminate\Http\RedirectResponse|NotFoundException|UnauthorizedException
+     */
+    public function handleLoginRequest(Request $request)
+    {
+        //  Validate request, police the controller
+        if (!config('managed.enable-fast-track', false) || null === ($_guid = $request->input('fastTrackGuid'))) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('[df-managed.instance-controller.fast-track] invalid request');
+
+            //  Play dumb, good cop
+            return new NotFoundException();
+        }
+
+        /** @noinspection PhpUndefinedMethodInspection
+         *
+         * Look up the user...
+         *
+         * @type User $_user
+         */
+        if (null === ($_user = User::whereRaw('SHA1(CONCAT(email,first_name,last_name)) = :guid', [':guid' => $_guid])->first())) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('[df-managed.instance-controller.fast-track] login failed for "' . $_guid . '"');
+
+            //  Quit it, Bad cop
+            return new UnauthorizedException();
+        }
+
+        logger('[df-managed.instance-controller.fast-track] received guid "' . $_guid . '"/"' . $_user->email . '" user id#' . $_user->id);
+
+        //  Ok, now we have a user, we need to check their role
+        static::validateRoleAccess($_user->id);
+
+        //   and log their buttocks in...
+        $_user->update(['last_login_date' => Carbon::now(), 'confirm_code' => 'y']);
+        Session::setUserInfoWithJWT($_user);
+
+        //  I'm thinking we're good at this point... onward
+        logger('[df-managed.instance-controller.fast-track] login "' . $_user->email . '"');
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        return Redirect::to('/');
     }
 }

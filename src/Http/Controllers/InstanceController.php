@@ -1,17 +1,15 @@
 <?php namespace DreamFactory\Managed\Http\Controllers;
 
-use DreamFactory\Core\Models\User;
+use DreamFactory\Core\Exceptions\NotFoundException;
+use DreamFactory\Core\Exceptions\UnauthorizedException;
 use DreamFactory\Managed\Exceptions\ManagedInstanceException;
 use DreamFactory\Managed\Facades\Cluster;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use DreamFactory\Managed\Http\Middleware\ImposeClusterLimits;
 use DreamFactory\Managed\Services\ClusterService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redirect;
 
 class InstanceController extends BaseController
 {
@@ -58,38 +56,12 @@ class InstanceController extends BaseController
      *
      * @param \Illuminate\Http\Request $request
      *
-     * @return RedirectResponse
+     * @return \Illuminate\Http\RedirectResponse|NotFoundException|UnauthorizedException
      */
     public function getFastTrack(Request $request)
     {
-        //  Valid request?
-        if (true !== config('managed.enable-fast-track', false) && null !== ($_guid = env('DF_FAST_TRACK_GUID'))) {
-            /** @noinspection PhpUndefinedMethodInspection */
-            if (null !== ($_user = User::whereRaw('SHA1(CONCAT(email,first_name,last_name)) = :guid', [':guid' => $_guid])->first())) {
-                logger('[df-managed.instance-controller.fast-track] received guid "' . $_guid . '"/"' . $_user->email . '" user id#' . $_user->id);
-
-                //  Ok, now we have a user, we need to log their buttocks in...
-                /** @noinspection PhpUndefinedMethodInspection */
-                if (Auth::login($_user)) {
-                    logger('[df-managed.instance-controller.fast-track] login "' . $_user->email . '"');
-
-                    /** @noinspection PhpUndefinedMethodInspection */
-                    return Redirect::to('/');
-                } else {
-                    /** @noinspection PhpUndefinedMethodInspection */
-                    Log::error('[df-managed.instance-controller.fast-track] login failed for "' . $_guid . '"');
-                }
-            } else {
-                /** @noinspection PhpUndefinedMethodInspection */
-                Log::error('[df-managed.instance-controller.fast-track] invalid guid received "' . $_guid . '"');
-            }
-        } else {
-            /** @noinspection PhpUndefinedMethodInspection */
-            Log::error('[df-managed.instance-controller.fast-track] invalid fast-track request received');
-        }
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        return Redirect::to('/auth/login');
+        //  Pass off to the cluster service to handle
+        return Cluster::handleLoginRequest($request);
     }
 
     /**
