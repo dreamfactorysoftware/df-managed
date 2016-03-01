@@ -126,7 +126,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
 
                 unset( $_envData, $_serviceSet );
 
-                if (env('BM_USE_URI', false) === true) {
+                if (env('BM_USE_URI', false) == true) {
                     return $this->getServiceConfigFromUri($_config['uri']);
                 }
 
