@@ -33,15 +33,18 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
      * @return array|bool
      * @throws \DreamFactory\Managed\Exceptions\ManagedEnvironmentException
      */
-    public function getDatabaseConfig($service = BlueMixDefaults::BM_DB_SERVICE_KEY, $index = BlueMixDefaults::BM_DB_INDEX, $subkey = BlueMixDefaults::BM_CREDS_KEY)
-    {
+    public function getDatabaseConfig(
+        $service = BlueMixDefaults::BM_DB_SERVICE_KEY,
+        $index = BlueMixDefaults::BM_DB_INDEX,
+        $subkey = BlueMixDefaults::BM_CREDS_KEY
+    ) {
         //  Decode and examine
         try {
 
-            if (!empty($_config = $this->getServiceConfig($service, $index, $subkey))) {
+            if (!empty( $_config = $this->getServiceConfig($service, $index, $subkey) )) {
 
                 return [
-                    'driver'    => 'mysql',
+                    'driver'    => array_get($_config, 'driver', 'pgsql'),
                     //  Check for 'host', then 'hostname', default to 'localhost'
                     'host'      => array_get($_config, 'host', array_get($_config, 'hostname', 'localhost')),
                     'database'  => $_config['name'],
@@ -54,7 +57,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
                     'strict'    => false,
                 ];
             }
-        } catch (\InvalidArgumentException $_ex) {
+        } catch ( \InvalidArgumentException $_ex ) {
             //  Environment not set correctly for this deployment
         }
 
@@ -70,12 +73,15 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
      * @return array|bool
      * @throws \DreamFactory\Managed\Exceptions\ManagedEnvironmentException
      */
-    public function getRedisConfig($service = BlueMixDefaults::BM_REDIS_SERVICE_KEY, $index = BlueMixDefaults::BM_REDIS_INDEX, $subkey = BlueMixDefaults::BM_CREDS_KEY)
-    {
+    public function getRedisConfig(
+        $service = BlueMixDefaults::BM_REDIS_SERVICE_KEY,
+        $index = BlueMixDefaults::BM_REDIS_INDEX,
+        $subkey = BlueMixDefaults::BM_CREDS_KEY
+    ) {
         //  Decode and examine
         try {
 
-            if (!empty($_config = $this->getServiceConfig($service, $index, $subkey))) {
+            if (!empty( $_config = $this->getServiceConfig($service, $index, $subkey) )) {
 
                 return [
                     //  Check for 'host', then 'hostname', default to '127.0.0.1'
@@ -85,7 +91,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
                     'port'     => $_config['port'],
                 ];
             }
-        } catch (\InvalidArgumentException $_ex) {
+        } catch ( \InvalidArgumentException $_ex ) {
             //  Environment not set correctly for this deployment
         }
 
@@ -108,25 +114,57 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
             /** @type string $_envData */
             $_envData = getenv(BlueMixDefaults::BM_ENV_KEY);
 
-            if (!empty($_availableServices = Json::decode($_envData, true))) {
+            if (!empty( $_availableServices = Json::decode($_envData, true) )) {
                 $_serviceSet = array_get($_availableServices, $service);
 
                 //  Get credentials environment data
-                $_config = array_get(isset($_serviceSet[$index]) ? $_serviceSet[$index] : [], $subkey, []);
+                $_config = array_get(isset( $_serviceSet[$index] ) ? $_serviceSet[$index] : [], $subkey, []);
 
-                if (empty($_config)) {
+                if (empty( $_config )) {
                     throw new \RuntimeException('Service credentials not found in env: ' . print_r($_serviceSet, true));
                 }
 
-                unset($_envData, $_serviceSet);
+                unset( $_envData, $_serviceSet );
+
+                if (env('BM_USE_URI', false) === true) {
+                    return $this->getServiceConfigFromUri($_config['uri']);
+                }
 
                 return $_config;
             }
-        } catch (\InvalidArgumentException $_ex) {
+        } catch ( \InvalidArgumentException $_ex ) {
             //  Environment not set correctly for this deployment
         }
 
         //  Database configuration not found for bluemix
         throw new ManagedEnvironmentException('Bluemix platform detected but no services are available.');
+    }
+
+    protected function getServiceConfigFromUri($uri)
+    {
+        // Strip any params that might be at the end of the URI string
+        if ($parmPos = strrpos($uri, '?')) {
+            $uri = substr($uri, 0, $parmPos);
+        }
+
+        // Get the driver type
+        list( $driver, $remainder ) = explode('://', $uri);
+
+        // Get the login credentials
+        list( $userAndPassword, $remainder ) = explode('@', $remainder);
+        list( $userName, $password ) = explode(':', $userAndPassword);
+
+        // Get the hostname, port and dbname
+        list( $hostAndPort, $name ) = explode('/', $remainder);
+        list( $hostname, $port ) = explode(':', $hostAndPort);
+
+        return [
+            'driver'   => $driver,
+            'name'     => $name,
+            'hostname' => $hostname,
+            'port'     => $port,
+            'username' => $userName,
+            'password' => $password
+        ];
     }
 }
