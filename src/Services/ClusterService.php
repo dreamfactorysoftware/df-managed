@@ -648,6 +648,6 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         logger('[df-managed.instance-controller.fast-track] login "' . $_user->email . '"');
 
         /** @noinspection PhpUndefinedMethodInspection */
-        return Redirect::to('/')->with(['session_token' => Session::getSessionToken()]);
+        return Redirect::to('/?' . http_build_query(['session_token' => Session::getSessionToken()]));
     }
 }
