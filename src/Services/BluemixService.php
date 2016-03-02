@@ -160,6 +160,15 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         list( $hostAndPort, $name ) = explode('/', $remainder);
         list( $hostname, $port ) = explode(':', $hostAndPort);
 
+        // Do any transformations needed on the driver name
+        switch($driver) {
+            case 'postgres':
+                $driver = 'pgsql';
+                break;
+            default:
+                break;
+        }
+
         return [
             'driver'   => $driver,
             'name'     => $name,
