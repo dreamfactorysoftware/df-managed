@@ -62,7 +62,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         }
 
         //  Database configuration not found for bluemix
-        throw new ManagedEnvironmentException('Bluemix platform detected but no database services are available.');
+        return [];
     }
 
     /**
@@ -96,7 +96,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         }
 
         //  Database configuration not found for bluemix
-        throw new ManagedEnvironmentException('Bluemix platform detected but no database services are available.');
+        return [];
     }
 
     /**
@@ -116,14 +116,13 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
 
             if (!empty( $_availableServices = Json::decode($_envData, true) )) {
 
-                if (!empty( $_serviceSet = array_get($_availableServices, $service) )) {
+                if (!empty( $_serviceSet = array_get($_availableServices, $service, []) )) {
+
                     //  Get credentials environment data
                     $_config = array_get(isset( $_serviceSet[$index] ) ? $_serviceSet[$index] : [], $subkey, []);
 
                     if (empty( $_config )) {
-                        throw new \RuntimeException(
-                            'Service credentials not found in env: ' . print_r($_serviceSet, true)
-                        );
+                        return [];
                     }
 
                     unset( $_envData, $_serviceSet );
@@ -140,7 +139,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         }
 
         //  Database configuration not found for bluemix
-        throw new ManagedEnvironmentException('Bluemix platform detected but no services are available.');
+        return [];
     }
 
     protected function getServiceConfigFromUri($uri)
