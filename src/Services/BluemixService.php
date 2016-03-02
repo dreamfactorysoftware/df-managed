@@ -115,22 +115,25 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
             $_envData = getenv(BlueMixDefaults::BM_ENV_KEY);
 
             if (!empty( $_availableServices = Json::decode($_envData, true) )) {
-                $_serviceSet = array_get($_availableServices, $service);
 
-                //  Get credentials environment data
-                $_config = array_get(isset( $_serviceSet[$index] ) ? $_serviceSet[$index] : [], $subkey, []);
+                if (!empty( $_serviceSet = array_get($_availableServices, $service) )) {
+                    //  Get credentials environment data
+                    $_config = array_get(isset( $_serviceSet[$index] ) ? $_serviceSet[$index] : [], $subkey, []);
 
-                if (empty( $_config )) {
-                    throw new \RuntimeException('Service credentials not found in env: ' . print_r($_serviceSet, true));
+                    if (empty( $_config )) {
+                        throw new \RuntimeException(
+                            'Service credentials not found in env: ' . print_r($_serviceSet, true)
+                        );
+                    }
+
+                    unset( $_envData, $_serviceSet );
+
+                    if (env('BM_USE_URI', false) == true) {
+                        return $this->getServiceConfigFromUri($_config['uri']);
+                    }
+
+                    return $_config;
                 }
-
-                unset( $_envData, $_serviceSet );
-
-                if (env('BM_USE_URI', false) == true) {
-                    return $this->getServiceConfigFromUri($_config['uri']);
-                }
-
-                return $_config;
             }
         } catch ( \InvalidArgumentException $_ex ) {
             //  Environment not set correctly for this deployment
