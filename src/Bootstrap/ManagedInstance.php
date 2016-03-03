@@ -146,9 +146,9 @@ class ManagedInstance
         $app->register(new BluemixServiceProvider($app));
         $_service = BluemixServiceProvider::service($app);
 
-        // Only need the Bluemix Service provider if the db driver is mysql
-        if ('mysql' == env('DB_DRIVER', 'mysql')) {
-            $_vars = ['DB_DRIVER' => 'mysql',];
+        // Only need the DB info if the db driver isn't sqlite
+
+        if ('sqlite' != env('DB_DRIVER', 'pgsql')) {
 
             //  Get the Bluemix database information
             $_config = $_service->getDatabaseConfig(
