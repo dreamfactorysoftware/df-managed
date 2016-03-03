@@ -26,7 +26,6 @@
         }
     ],
     "minimum-stability": "dev",
-    "prefer-stable":     true,
     "require":           {
         "dreamfactory/php-utils": "1.1.*",
         "dreamfactory/df-core":   "0.2.*"
