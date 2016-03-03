@@ -41,7 +41,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         //  Decode and examine
         try {
 
-            if (!empty( $_config = $this->getServiceConfig($service, $index, $subkey) )) {
+            if (!empty( $_config = $this->getServiceConfig($service, $index, $subkey, env('BM_USE_URI', false)) )) {
 
                 return [
                     'driver'    => array_get($_config, 'driver', 'pgsql'),
@@ -57,7 +57,8 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
                     'strict'    => false,
                 ];
             }
-        } catch ( \InvalidArgumentException $_ex ) {
+        } catch
+        ( \InvalidArgumentException $_ex ) {
             //  Environment not set correctly for this deployment
         }
 
@@ -107,7 +108,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
      * @return array|bool
      * @throws \DreamFactory\Managed\Exceptions\ManagedEnvironmentException
      */
-    protected function getServiceConfig($service, $index, $subkey)
+    protected function getServiceConfig($service, $index, $subkey, $use_uri = false)
     {
         //  Decode and examine
         try {
@@ -127,7 +128,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
 
                     unset( $_envData, $_serviceSet );
 
-                    if (env('BM_USE_URI', false) == true) {
+                    if ($use_uri == true) {
                         return $this->getServiceConfigFromUri($_config['uri']);
                     }
 
@@ -161,7 +162,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         list( $hostname, $port ) = explode(':', $hostAndPort);
 
         // Do any transformations needed on the driver name
-        switch($driver) {
+        switch ($driver) {
             case 'postgres':
                 $driver = 'pgsql';
                 break;
