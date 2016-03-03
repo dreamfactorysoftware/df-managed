@@ -19,7 +19,7 @@ class BlueMixDefaults extends FactoryEnum
     /**
      * @type string The name of the key containing the database configuration
      */
-    const BM_DB_SERVICE_KEY = 'user-provided';
+    const BM_DB_SERVICE_KEY = 'elephantsql';
     /**
      * @type int The index of the database config to use
      */
