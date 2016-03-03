@@ -41,10 +41,10 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         //  Decode and examine
         try {
 
-            if (!empty( $_config = $this->_getServiceConfig($service, $index, $subkey) )) {
+            if (!empty( $_config = $this->getServiceConfig($service, $index, $subkey) )) {
 
                 return [
-                    'driver'    => 'mysql',
+                    'driver'    => array_get($_config, 'driver', 'pgsql'),
                     //  Check for 'host', then 'hostname', default to 'localhost'
                     'host'      => array_get($_config, 'host', array_get($_config, 'hostname', 'localhost')),
                     'database'  => $_config['name'],
@@ -62,7 +62,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         }
 
         //  Database configuration not found for bluemix
-        throw new ManagedEnvironmentException('Bluemix platform detected but no database services are available.');
+        return [];
     }
 
     /**
@@ -81,7 +81,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         //  Decode and examine
         try {
 
-            if (!empty( $_config = $this->_getServiceConfig($service, $index, $subkey) )) {
+            if (!empty( $_config = $this->getServiceConfig($service, $index, $subkey) )) {
 
                 return [
                     //  Check for 'host', then 'hostname', default to '127.0.0.1'
@@ -96,7 +96,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
         }
 
         //  Database configuration not found for bluemix
-        throw new ManagedEnvironmentException('Bluemix platform detected but no database services are available.');
+        return [];
     }
 
     /**
@@ -107,7 +107,7 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
      * @return array|bool
      * @throws \DreamFactory\Managed\Exceptions\ManagedEnvironmentException
      */
-    private function _getServiceConfig($service, $index, $subkey)
+    protected function getServiceConfig($service, $index, $subkey)
     {
         //  Decode and examine
         try {
@@ -115,24 +115,67 @@ class BluemixService extends BaseService implements ProvidesManagedDatabase
             $_envData = getenv(BlueMixDefaults::BM_ENV_KEY);
 
             if (!empty( $_availableServices = Json::decode($_envData, true) )) {
-                $_serviceSet = array_get($_availableServices, $service);
 
-                //  Get credentials environment data
-                $_config = array_get(isset( $_serviceSet[$index] ) ? $_serviceSet[$index] : [], $subkey, []);
+                if (!empty( $_serviceSet = array_get($_availableServices, $service, []) )) {
 
-                if (empty( $_config )) {
-                    throw new \RuntimeException('Service credentials not found in env: ' . print_r($_serviceSet, true));
+                    //  Get credentials environment data
+                    $_config = array_get(isset( $_serviceSet[$index] ) ? $_serviceSet[$index] : [], $subkey, []);
+
+                    if (empty( $_config )) {
+                        return [];
+                    }
+
+                    unset( $_envData, $_serviceSet );
+
+                    if (env('BM_USE_URI', false) == true) {
+                        return $this->getServiceConfigFromUri($_config['uri']);
+                    }
+
+                    return $_config;
                 }
-
-                unset( $_envData, $_serviceSet );
-
-                return $_config;
             }
         } catch ( \InvalidArgumentException $_ex ) {
             //  Environment not set correctly for this deployment
         }
 
         //  Database configuration not found for bluemix
-        throw new ManagedEnvironmentException('Bluemix platform detected but no services are available.');
+        return [];
+    }
+
+    protected function getServiceConfigFromUri($uri)
+    {
+        // Strip any params that might be at the end of the URI string
+        if ($parmPos = strrpos($uri, '?')) {
+            $uri = substr($uri, 0, $parmPos);
+        }
+
+        // Get the driver type
+        list( $driver, $remainder ) = explode('://', $uri);
+
+        // Get the login credentials
+        list( $userAndPassword, $remainder ) = explode('@', $remainder);
+        list( $userName, $password ) = explode(':', $userAndPassword);
+
+        // Get the hostname, port and dbname
+        list( $hostAndPort, $name ) = explode('/', $remainder);
+        list( $hostname, $port ) = explode(':', $hostAndPort);
+
+        // Do any transformations needed on the driver name
+        switch($driver) {
+            case 'postgres':
+                $driver = 'pgsql';
+                break;
+            default:
+                break;
+        }
+
+        return [
+            'driver'   => $driver,
+            'name'     => $name,
+            'hostname' => $hostname,
+            'port'     => $port,
+            'username' => $userName,
+            'password' => $password
+        ];
     }
 }

@@ -1,5 +1,12 @@
 <?php namespace DreamFactory\Managed\Services;
 
+use Carbon\Carbon;
+use DreamFactory\Core\Exceptions\ForbiddenException;
+use DreamFactory\Core\Exceptions\NotFoundException;
+use DreamFactory\Core\Exceptions\UnauthorizedException;
+use DreamFactory\Core\Models\Role;
+use DreamFactory\Core\Models\User;
+use DreamFactory\Core\Utility\Session;
 use DreamFactory\Library\Utility\Curl;
 use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Library\Utility\JsonFile;
@@ -16,6 +23,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redirect;
 
 /**
  * A service that interacts with the DFE console
@@ -83,7 +92,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         $_manifest = new ClusterManifest($this);
 
         //  Seed our config with the manifest
-        $this->config = $_manifest->toArray();
+        $this->config = (array)$_manifest->toArray();
 
         try {
             //  Now let's discover our secret powers...
@@ -93,6 +102,20 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
 
             throw new ManagedInstanceException('Error interrogating console: ' . $_ex->getMessage(), $_ex->getCode(), $_ex);
         }
+    }
+
+    /**
+     * Removes any cached managed data
+     *
+     * @return bool
+     */
+    public function deleteManagedDataCache()
+    {
+        if (file_exists($_cacheFile = $this->getCacheFile())) {
+            return @unlink($_cacheFile);
+        }
+
+        return true;
     }
 
     /** @inheritdoc */
@@ -130,9 +153,8 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     protected function loadCachedValues()
     {
         $_cached = null;
-        $_cacheFile = Disk::path([$this->getCachePath(true), $this->getCacheKey()]);
 
-        if (file_exists($_cacheFile)) {
+        if (file_exists($_cacheFile = $this->getCacheFile())) {
             $_cached = JsonFile::decodeFile($_cacheFile);
 
             if (isset($_cached, $_cached['.expires']) && $_cached['.expires'] < time()) {
@@ -244,6 +266,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             //  Get the database config plucking the first entry if one.
             'db'            => (array)head((array)data_get($_status, 'response.metadata.db', [])),
             'limits'        => (array)data_get($_status, 'response.metadata.limits', []),
+            'overrides'     => (array)data_get($_status, 'response.overrides', []),
         ]);
 
         //  Add in our middleware
@@ -538,5 +561,93 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     public function getLimits($key = null, $default = [])
     {
         return $this->getConfig((null === $key) ? 'limits' : 'limits.' . $key, $default);
+    }
+
+    /**
+     * Returns any values to be overwritten.
+     *
+     * @param string     $key     The key to pull. NULL returns all keys in an array
+     * @param mixed|null $default The default value to return if key does not exist
+     *
+     * @return array|mixed
+     */
+    public function getOverride($key = null, $default = null)
+    {
+        $_overrides = $this->getConfig('overrides', []);
+
+        if (null === $key) {
+            return $_overrides;
+        }
+
+        return array_get($_overrides, $key, $default);
+    }
+
+    /**
+     * @return string The cache file name for this instance
+     */
+    protected function getCacheFile()
+    {
+        return Disk::path([$this->getCachePath(true), $this->getCacheKey()]);
+    }
+
+    /**
+     * @param int $userId
+     *
+     * @throws \DreamFactory\Core\Exceptions\ForbiddenException
+     */
+    protected function validateRoleAccess($userId)
+    {
+        if (!empty($_appId = Session::get('app.id', null))) {
+            $_roleId = Session::getRoleIdByAppIdAndUserId($_appId, $userId);
+            if (!array_get(Role::getCachedInfo($_roleId, null, []) ?: [], 'is_active', false)) {
+                throw new ForbiddenException('Role is not active.');
+            }
+        }
+    }
+
+    /**
+     * @param \Illuminate\Http\Request $request
+     *
+     * @return \Illuminate\Http\RedirectResponse|NotFoundException|UnauthorizedException
+     */
+    public function handleLoginRequest(Request $request)
+    {
+        //  Validate request, police the controller
+        if (!config('managed.enable-fast-track', false) || null === ($_guid = $request->get('fastTrackGuid'))) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('[df-managed.instance-controller.fast-track] invalid request');
+
+            //  Play dumb, good cop
+            return new Response(null, Response::HTTP_NOT_FOUND);
+        }
+
+        /** @noinspection PhpUndefinedMethodInspection
+         *
+         * Look up the user...
+         *
+         * @type User $_user
+         */
+        if (null === ($_user = User::whereRaw('SHA1(CONCAT(email,first_name,last_name)) = :guid', [':guid' => $_guid])->first())) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('[df-managed.instance-controller.fast-track] login failed for "' . $_guid . '"');
+
+            //  Quit it, Bad cop
+            return new Response(null, Response::HTTP_UNAUTHORIZED);
+        }
+
+        logger('[df-managed.instance-controller.fast-track] received guid "' . $_guid . '"/"' . $_user->email . '" user id#' . $_user->id);
+
+        //  Ok, now we have a user, we need to check their role
+        static::validateRoleAccess($_user->id);
+
+        //   and log their buttocks in...
+        $_user->update(['last_login_date' => Carbon::now(), 'confirm_code' => 'y']);
+        Session::setUserInfoWithJWT($_user);
+
+        //  I'm thinking we're good at this point... onward
+        logger('[df-managed.instance-controller.fast-track] login "' . $_user->email . '"');
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        return Redirect::to('/?' . http_build_query(['session_token' => Session::getSessionToken()]));
     }
 }

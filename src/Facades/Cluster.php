@@ -1,14 +1,19 @@
 <?php namespace DreamFactory\Managed\Facades;
 
+use DreamFactory\Core\Exceptions\RestException;
 use DreamFactory\Library\Utility\Facades\BaseFacade;
 use DreamFactory\Managed\Contracts\HasMiddleware;
 use DreamFactory\Managed\Contracts\HasRouteMiddleware;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
 /**
  * ClusterService facade
+ *
+ * @see \DreamFactory\Managed\Services\ClusterService
  *
  * @method static string getHostName($hashed = false)
  * @method static string getInstanceName()
@@ -27,6 +32,9 @@ use Illuminate\Routing\Controller;
  * @method static array|null getLimits($key = null, $default = [])
  * @method static HasMiddleware pushMiddleware(Kernel $kernel)
  * @method static HasRouteMiddleware pushRouteMiddleware(Controller $controller)
+ * @method static bool deleteManagedDataCache()
+ * @method static void validateRoleAccess($userId)
+ * @method static Response|RestException handleLoginRequest(Request $request)
  */
 class Cluster extends BaseFacade
 {
