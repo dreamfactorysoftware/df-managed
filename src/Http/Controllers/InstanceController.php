@@ -1,7 +1,5 @@
 <?php namespace DreamFactory\Managed\Http\Controllers;
 
-use DreamFactory\Core\Exceptions\NotFoundException;
-use DreamFactory\Core\Exceptions\UnauthorizedException;
 use DreamFactory\Managed\Exceptions\ManagedInstanceException;
 use DreamFactory\Managed\Facades\Cluster;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
@@ -56,7 +54,7 @@ class InstanceController extends BaseController
      *
      * @param \Illuminate\Http\Request $request
      *
-     * @return \Illuminate\Http\RedirectResponse|NotFoundException|UnauthorizedException
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function getFastTrack(Request $request)
     {
