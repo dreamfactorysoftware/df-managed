@@ -7,6 +7,7 @@ use DreamFactory\Managed\Http\Middleware\ImposeClusterLimits;
 use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class InstanceController extends BaseController
@@ -18,7 +19,7 @@ class InstanceController extends BaseController
     /*** Constructor */
     public function __construct()
     {
-        $this->middleware('access_check', ['except' => ['getFastTrack']]);
+        $this->middleware('access_check', ['except' => ['getFastTrack', 'getTableCount']]);
     }
 
     /**
@@ -45,7 +46,7 @@ class InstanceController extends BaseController
         }
 
         /** @noinspection PhpUndefinedMethodInspection */
-        return Response::json(['success' => $_result]);
+        return \Response::json(['success' => $_result]);
     }
 
     /**
@@ -89,7 +90,7 @@ class InstanceController extends BaseController
             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
 
             /** @noinspection PhpUndefinedMethodInspection */
-            return Response::json(['success' => true]);
+            return \Response::json(['success' => true]);
         }
     }
 
@@ -115,7 +116,7 @@ class InstanceController extends BaseController
             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
 
             /** @noinspection PhpUndefinedMethodInspection */
-            return Response::json(['success' => true]);
+            return \Response::json(['success' => true]);
         }
     }
 
@@ -127,7 +128,7 @@ class InstanceController extends BaseController
     public function deleteManagedDataCache()
     {
         /** @noinspection PhpUndefinedMethodInspection */
-        return Response::json(['success' => Cluster::deleteManagedDataCache()]);
+        return \Response::json(['success' => Cluster::deleteManagedDataCache()]);
     }
 
     /**
@@ -138,7 +139,8 @@ class InstanceController extends BaseController
         $_count = false;
 
         try {
-            $_tables = \DB::connection()->getDoctrineSchemaManager()->listTables();
+            /** @noinspection PhpUndefinedMethodInspection */
+            $_tables = DB::connection()->getDoctrineSchemaManager()->listTables();
 
             if (!empty($_count = count($_tables))) {
                 //  A chance to clean up old junk
@@ -148,13 +150,13 @@ class InstanceController extends BaseController
             \Log::error('[dfe.instance-api-client.get-instance-table-count] error contacting instance database: ' . $_ex->getMessage());
         }
 
-        return Response::json(['success' => true, 'count' => $_count]);
+        return \Response::json(['success' => true, 'count' => $_count]);
     }
 
     /**
      * Remove any legacy settings that were otherwise missed
      */
-    protected function deleteLegacySettings()
+    protected function removeLegacySettings()
     {
         try {
             if (\DB::connection()->delete('DELETE FROM system_resource WHERE name = :name', [':name' => 'setting'])) {
