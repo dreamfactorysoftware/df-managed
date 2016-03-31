@@ -129,4 +129,41 @@ class InstanceController extends BaseController
         /** @noinspection PhpUndefinedMethodInspection */
         return Response::json(['success' => Cluster::deleteManagedDataCache()]);
     }
+
+    /**
+     * @return Response
+     */
+    public function getTableCount()
+    {
+        $_count = false;
+
+        try {
+            $_tables = \DB::connection()->getDoctrineSchemaManager()->listTables();
+
+            if (!empty($_count = count($_tables))) {
+                //  A chance to clean up old junk
+                $this->removeLegacySettings();
+            }
+        } catch (\Exception $_ex) {
+            \Log::error('[dfe.instance-api-client.get-instance-table-count] error contacting instance database: ' . $_ex->getMessage());
+        }
+
+        return Response::json(['success' => true, 'count' => $_count]);
+    }
+
+    /**
+     * Remove any legacy settings that were otherwise missed
+     */
+    protected function deleteLegacySettings()
+    {
+        try {
+            if (\DB::connection()->delete('DELETE FROM system_resource WHERE name = :name', [':name' => 'setting'])) {
+                logger('[dfe.instance-api-client.remove-legacy-settings] legacy artifact "setting" removed from system_resource table');
+            }
+        } catch (\Exception $_ex) {
+            //  Ignored...
+        }
+
+        return $this;
+    }
 }
