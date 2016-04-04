@@ -94,6 +94,8 @@ class ManagedInstance
             'DF_MANAGED_LOG_FILE'     => $_cluster->getHostName() . '.log',
             'DF_MANAGED'              => true,
             'DB_DRIVER'               => 'mysql',
+            'DF_PACKAGE_DIR'          => $_cluster->getConfig('package-path'),
+            'DF_PACKAGES'             => implode('|', $_cluster->getConfig('packages', [])),
         ];
 
         //  Get the cluster database information

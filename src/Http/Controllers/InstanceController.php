@@ -6,9 +6,9 @@ use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use DreamFactory\Managed\Http\Middleware\ImposeClusterLimits;
 use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Response;
 
 class InstanceController extends BaseController
 {
@@ -46,7 +46,7 @@ class InstanceController extends BaseController
         }
 
         /** @noinspection PhpUndefinedMethodInspection */
-        return \Response::json(['success' => $_result]);
+        return Response::json(['success' => $_result]);
     }
 
     /**
@@ -90,7 +90,7 @@ class InstanceController extends BaseController
             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
 
             /** @noinspection PhpUndefinedMethodInspection */
-            return \Response::json(['success' => true]);
+            return Response::json(['success' => true]);
         }
     }
 
@@ -116,7 +116,7 @@ class InstanceController extends BaseController
             $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
 
             /** @noinspection PhpUndefinedMethodInspection */
-            return \Response::json(['success' => true]);
+            return Response::json(['success' => true]);
         }
     }
 
@@ -128,7 +128,7 @@ class InstanceController extends BaseController
     public function deleteManagedDataCache()
     {
         /** @noinspection PhpUndefinedMethodInspection */
-        return \Response::json(['success' => Cluster::deleteManagedDataCache()]);
+        return Response::json(['success' => Cluster::deleteManagedDataCache()]);
     }
 
     /**
@@ -147,10 +147,12 @@ class InstanceController extends BaseController
                 $this->removeLegacySettings();
             }
         } catch (\Exception $_ex) {
-            \Log::error('[dfe.instance-api-client.get-instance-table-count] error contacting instance database: ' . $_ex->getMessage());
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('[dfe.instance-api-client.get-instance-table-count] error contacting instance database: ' . $_ex->getMessage());
         }
 
-        return \Response::json(['success' => true, 'count' => $_count]);
+        /** @noinspection PhpUndefinedMethodInspection */
+        return Response::json(['success' => true, 'count' => $_count]);
     }
 
     /**
@@ -159,7 +161,8 @@ class InstanceController extends BaseController
     protected function removeLegacySettings()
     {
         try {
-            if (\DB::connection()->delete('DELETE FROM system_resource WHERE name = :name', [':name' => 'setting'])) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            if (DB::connection()->delete('DELETE FROM system_resource WHERE name = :name', [':name' => 'setting'])) {
                 logger('[dfe.instance-api-client.remove-legacy-settings] legacy artifact "setting" removed from system_resource table');
             }
         } catch (\Exception $_ex) {
