@@ -229,8 +229,6 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
 
         //  Stuff all the unadulterated data into the config
         $_paths = (array)data_get($_status, 'response.metadata.paths', []);
-        $_packages = (array)data_get($_status, 'response.metadata.env.packages', []);
-        $_packagePath = (array)data_get($_status, 'response.metadata.env.package-path', []);
         $_paths['storage-root'] = $_storageRoot = $this->getConfig('storage-root');
 
         //  Clean up the paths accordingly
@@ -269,8 +267,8 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             'db'            => (array)head((array)data_get($_status, 'response.metadata.db', [])),
             'limits'        => (array)data_get($_status, 'response.metadata.limits', []),
             'overrides'     => (array)data_get($_status, 'response.overrides', []),
-            'packages'      => $_packages,
-            'package-path'  => $_packagePath,
+            'packages'      => (array)data_get($_status, 'response.metadata.env.packages', []),
+            'package-path'  => data_get($_status, 'response.metadata.paths.package-path'),
         ]);
 
         //  Add in our middleware
@@ -533,6 +531,11 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     public function getStorageRoot()
     {
         return $this->getConfig('storage-root');
+    }
+
+    public function getPackagePath()
+    {
+        return $this->getConfig('package-path');
     }
 
     /**
