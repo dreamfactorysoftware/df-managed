@@ -267,8 +267,6 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             'db'            => (array)head((array)data_get($_status, 'response.metadata.db', [])),
             'limits'        => (array)data_get($_status, 'response.metadata.limits', []),
             'overrides'     => (array)data_get($_status, 'response.overrides', []),
-            'packages'      => (array)data_get($_status, 'response.metadata.env.packages', []),
-            'package-path'  => data_get($_status, 'response.metadata.paths.package-path'),
         ]);
 
         //  Add in our middleware
@@ -535,7 +533,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
 
     public function getPackagePath()
     {
-        return $this->getConfig('package-path');
+        return $this->getConfig('paths.package-path');
     }
 
     /**
