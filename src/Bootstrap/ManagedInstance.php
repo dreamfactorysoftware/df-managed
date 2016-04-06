@@ -94,6 +94,7 @@ class ManagedInstance
             'DF_MANAGED_LOG_FILE'     => $_cluster->getHostName() . '.log',
             'DF_MANAGED'              => true,
             'DB_DRIVER'               => 'mysql',
+            'DF_PACKAGE_PATH'         => $_cluster->getPackagePath(),
         ];
 
         //  Get the cluster database information
@@ -122,6 +123,7 @@ class ManagedInstance
 
         //  Now jam everything into the environment
         foreach ($_vars as $_key => $_value) {
+            error_log($_key . '=' . print_r($_value, true));
             putenv($_key . '=' . $_value);
             $_ENV[$_key] = $_value;
             $_SERVER[$_key] = $_value;

@@ -1,15 +1,14 @@
 <?php namespace DreamFactory\Managed\Http\Controllers;
 
-use DreamFactory\Core\Exceptions\NotFoundException;
-use DreamFactory\Core\Exceptions\UnauthorizedException;
 use DreamFactory\Managed\Exceptions\ManagedInstanceException;
 use DreamFactory\Managed\Facades\Cluster;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use DreamFactory\Managed\Http\Middleware\ImposeClusterLimits;
 use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Response;
 
 class InstanceController extends BaseController
 {
@@ -20,7 +19,7 @@ class InstanceController extends BaseController
     /*** Constructor */
     public function __construct()
     {
-        $this->middleware('access_check', ['except' => ['getFastTrack']]);
+        $this->middleware('access_check', ['except' => ['getFastTrack', 'getTableCount']]);
     }
 
     /**
@@ -56,7 +55,7 @@ class InstanceController extends BaseController
      *
      * @param \Illuminate\Http\Request $request
      *
-     * @return \Illuminate\Http\RedirectResponse|NotFoundException|UnauthorizedException
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function getFastTrack(Request $request)
     {
@@ -130,5 +129,46 @@ class InstanceController extends BaseController
     {
         /** @noinspection PhpUndefinedMethodInspection */
         return Response::json(['success' => Cluster::deleteManagedDataCache()]);
+    }
+
+    /**
+     * @return Response
+     */
+    public function getTableCount()
+    {
+        $_count = false;
+
+        try {
+            /** @noinspection PhpUndefinedMethodInspection */
+            $_tables = DB::connection()->getDoctrineSchemaManager()->listTables();
+
+            if (!empty($_count = count($_tables))) {
+                //  A chance to clean up old junk
+                $this->removeLegacySettings();
+            }
+        } catch (\Exception $_ex) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            Log::error('[dfe.instance-api-client.get-instance-table-count] error contacting instance database: ' . $_ex->getMessage());
+        }
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        return Response::json(['success' => true, 'count' => $_count]);
+    }
+
+    /**
+     * Remove any legacy settings that were otherwise missed
+     */
+    protected function removeLegacySettings()
+    {
+        try {
+            /** @noinspection PhpUndefinedMethodInspection */
+            if (DB::connection()->delete('DELETE FROM system_resource WHERE name = :name', [':name' => 'setting'])) {
+                logger('[dfe.instance-api-client.remove-legacy-settings] legacy artifact "setting" removed from system_resource table');
+            }
+        } catch (\Exception $_ex) {
+            //  Ignored...
+        }
+
+        return $this;
     }
 }

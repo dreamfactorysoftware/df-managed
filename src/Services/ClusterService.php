@@ -531,6 +531,11 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         return $this->getConfig('storage-root');
     }
 
+    public function getPackagePath()
+    {
+        return $this->getConfig('paths.package-path');
+    }
+
     /**
      * Returns cache root
      *
