@@ -142,10 +142,7 @@ class InstanceController extends BaseController
             /** @noinspection PhpUndefinedMethodInspection */
             $_tables = DB::connection()->getDoctrineSchemaManager()->listTables();
 
-            if (!empty($_count = count($_tables))) {
-                //  A chance to clean up old junk
-                $this->removeLegacySettings();
-            }
+            $_count = count($_tables);
         } catch (\Exception $_ex) {
             /** @noinspection PhpUndefinedMethodInspection */
             Log::error('[dfe.instance-api-client.get-instance-table-count] error contacting instance database: ' . $_ex->getMessage());
@@ -153,22 +150,5 @@ class InstanceController extends BaseController
 
         /** @noinspection PhpUndefinedMethodInspection */
         return Response::json(['success' => true, 'count' => $_count]);
-    }
-
-    /**
-     * Remove any legacy settings that were otherwise missed
-     */
-    protected function removeLegacySettings()
-    {
-        try {
-            /** @noinspection PhpUndefinedMethodInspection */
-            if (DB::connection()->delete('DELETE FROM system_resource WHERE name = :name', [':name' => 'setting'])) {
-                logger('[dfe.instance-api-client.remove-legacy-settings] legacy artifact "setting" removed from system_resource table');
-            }
-        } catch (\Exception $_ex) {
-            //  Ignored...
-        }
-
-        return $this;
     }
 }
