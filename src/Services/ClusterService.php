@@ -161,7 +161,9 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
                 $_cached = null;
             }
 
-            array_forget($_cached, '.expires');
+            if(!empty($_cached)) {
+                array_forget($_cached, '.expires');
+            }
         }
 
         //  These must exist otherwise we need to phone home
