@@ -1,47 +1,49 @@
 {
-    "name":              "dreamfactory/df-managed",
-    "description":       "DreamFactory(tm) Managed Service Library",
-    "homepage":          "https://www.dreamfactory.com/",
-    "keywords":          [
-        "dreamfactory",
-        "enterprise",
-        "manager",
-        "remote"
-    ],
-    "license":           [
-        "Apache-2.0"
-    ],
-    "authors":           [
-        {
-            "name":  "Jerry Ablan",
-            "email": "jerryablan@dreamfactory.com"
-        },
-        {
-            "name":  "David L. Weiner",
-            "email": "davidweiner@dreamfactory.com"
-        },
-        {
-            "name":  "Arif Islam",
-            "email": "arifislam@dreamfactory.com"
-        }
-    ],
-    "minimum-stability": "dev",
-    "require":           {
-        "dreamfactory/php-utils": "1.1.*",
-        "dreamfactory/df-core":   "0.2.*"
+  "name":        "dreamfactory/df-managed",
+  "description": "DreamFactory(tm) Managed Service Library",
+  "homepage":    "https://www.dreamfactory.com/",
+  "keywords":    [
+    "dreamfactory",
+    "enterprise",
+    "manager",
+    "remote"
+  ],
+  "license":     [
+    "Apache-2.0"
+  ],
+  "authors":     [
+    {
+      "name":  "Arif Islam",
+      "email": "arifislam@dreamfactory.com"
     },
-    "require-dev":       {
-        "phpunit/phpunit":   "@stable",
-        "laravel/framework": "5.1.*"
+    {
+      "name":  "David L. Weiner",
+      "email": "davidweiner@dreamfactory.com"
     },
-    "autoload":          {
-        "psr-4": {
-            "DreamFactory\\Managed\\": "src/"
-        }
+    {
+      "name":  "Jerry Ablan",
+      "email": "jerryablan@dreamfactory.com"
     },
-    "extra":             {
-        "branch-alias": {
-            "dev-develop": "2.0.x-dev"
-        }
+    {
+      "name":  "Lee Hicks",
+      "email": "leehicks@dreamfactory.com"
     }
+  ],
+  "require":     {
+    "dreamfactory/df-core": "0.3.*"
+  },
+  "require-dev": {
+    "phpunit/phpunit":   "@stable",
+    "laravel/framework": "5.1.*"
+  },
+  "autoload":    {
+    "psr-4": {
+      "DreamFactory\\Managed\\": "src/"
+    }
+  },
+  "extra":       {
+    "branch-alias": {
+      "dev-develop": "2.1.x-dev"
+    }
+  }
 }
