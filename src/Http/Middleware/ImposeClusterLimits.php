@@ -189,13 +189,13 @@ class ImposeClusterLimits
                     }
                 }
             } catch (\Exception $_ex) {
-                return ResponseFactory::getException(new InternalServerErrorException('Unable to update cache: ' . $_ex->getMessage()),
+                return ResponseFactory::sendException(new InternalServerErrorException('Unable to update cache: ' . $_ex->getMessage()),
                     $request);
             }
 
             if ($overLimit) {
                 /* Per Ben, we want to increment every limit they hit, not stop after the first one */
-                return ResponseFactory::getException(new TooManyRequestsException('API limit(s) exceeded: ' . implode(', ', $overLimit)),
+                return ResponseFactory::sendException(new TooManyRequestsException('API limit(s) exceeded: ' . implode(', ', $overLimit)),
                     $request);
             }
         }
