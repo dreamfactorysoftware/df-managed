@@ -6,6 +6,7 @@ use DreamFactory\Core\Exceptions\NotFoundException;
 use DreamFactory\Core\Exceptions\UnauthorizedException;
 use DreamFactory\Core\Models\Role;
 use DreamFactory\Core\Models\User;
+use DreamFactory\Core\Models\UserAppRole;
 use DreamFactory\Core\Utility\Session;
 use DreamFactory\Library\Utility\Curl;
 use DreamFactory\Library\Utility\Disk;
@@ -605,7 +606,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     protected function validateRoleAccess($userId)
     {
         if (!empty($_appId = Session::get('app.id', null))) {
-            $_roleId = Session::getRoleIdByAppIdAndUserId($_appId, $userId);
+            $_roleId = UserAppRole::getRoleIdByAppIdAndUserId($_appId, $userId);
             if (!array_get(Role::getCachedInfo($_roleId, null, []) ?: [], 'is_active', false)) {
                 throw new ForbiddenException('Role is not active.');
             }
