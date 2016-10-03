@@ -22,11 +22,11 @@
     }
   ],
   "require":     {
-    "dreamfactory/df-core": "0.4.*"
+    "dreamfactory/df-core": "0.5.*"
   },
   "require-dev": {
     "phpunit/phpunit":   "@stable",
-    "laravel/framework": "5.1.*"
+    "laravel/framework": "5.2.*"
   },
   "autoload":    {
     "psr-4": {
@@ -35,7 +35,7 @@
   },
   "extra":       {
     "branch-alias": {
-      "dev-develop": "2.2.x-dev"
+      "dev-develop": "2.3.x-dev"
     }
   }
 }
