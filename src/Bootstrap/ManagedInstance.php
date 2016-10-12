@@ -109,6 +109,11 @@ class ManagedInstance
             }
         }
 
+        $_vars['DF_MANAGED_LOG_PATH'] = rtrim($_vars['DF_MANAGED_LOG_PATH'], '/') .
+                                        DIRECTORY_SEPARATOR .
+                                        $_cluster->getHostName() .
+                                        DIRECTORY_SEPARATOR;
+
         //  If this is a console request, denote it as such
         $_vars['DF_CONSOLE_KEY'] = $_cluster->getConsoleKey();
 
