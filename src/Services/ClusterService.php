@@ -190,12 +190,14 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         $_cachePath = $this->getCachePath();
 
         //Delete the encoded file first to ensure old entries such as limits are removed when deleted.
-        if(file_exists($_cachePath . DIRECTORY_SEPARATOR . $_cacheKey)){
-            unlink($_cachePath . DIRECTORY_SEPARATOR . $_cacheKey);
+        if (file_exists($this->getCacheFile())) {
+            /* Forces cache invalidation on next api call */
+            $this->config['.expires'] = 0;
+        } else {
+            $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
         }
-
         $_cacheFile = Disk::path($_cachePath, true, 0775) . DIRECTORY_SEPARATOR . $_cacheKey;
-        $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
+
         $this->config['.middleware'] = $this->middleware;
         $this->config['.route-middleware'] = $this->routeMiddleware;
 
