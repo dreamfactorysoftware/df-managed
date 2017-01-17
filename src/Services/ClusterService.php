@@ -26,6 +26,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Filesystem;
 
 /**
  * A service that interacts with the DFE console
@@ -185,8 +186,18 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
      */
     protected function freshenCache()
     {
-        $_cacheFile = Disk::path($this->getCachePath(), true, 0775) . DIRECTORY_SEPARATOR . $this->getCacheKey();
-        $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
+        $_cacheKey  = $this->getCacheKey();
+        $_cachePath = $this->getCachePath();
+
+        //Delete the encoded file first to ensure old entries such as limits are removed when deleted.
+        if (file_exists($this->getCacheFile())) {
+            /* Forces cache invalidation on next api call */
+            $this->config['.expires'] = 0;
+        } else {
+            $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
+        }
+        $_cacheFile = Disk::path($_cachePath, true, 0775) . DIRECTORY_SEPARATOR . $_cacheKey;
+
         $this->config['.middleware'] = $this->middleware;
         $this->config['.route-middleware'] = $this->routeMiddleware;
 
