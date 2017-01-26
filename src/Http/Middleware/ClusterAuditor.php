@@ -34,6 +34,7 @@ class ClusterAuditor
                 app()->register(AuditServiceProvider::class);
 
                 //  We use provider's service() method because Facades aren't loaded yet
+                AuditServiceProvider::service()->setHost(env('DFE_AUDIT_HOST', 'localhost'), env('DFE_AUDIT_PORT', 12202));
                 AuditServiceProvider::service()->logRequest($request, $_session);
             } catch (\Exception $_ex) {
                 //  Completely ignored...
