@@ -113,7 +113,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
      */
     public function deleteManagedDataCache()
     {
-        if (file_exists($_cacheFile = $this->getCacheFile())) {
+        if (file_exists($_cacheFile = $this->getCacheFilePath())) {
             return @unlink($_cacheFile);
         }
 
@@ -156,7 +156,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     {
         $_cached = null;
 
-        if (file_exists($_cacheFile = $this->getCacheFile())) {
+        if (file_exists($_cacheFile = $this->getCacheFilePath())) {
             $_cached = JsonFile::decodeFile($_cacheFile);
 
             if (isset($_cached, $_cached['.expires']) && $_cached['.expires'] < time()) {
@@ -190,12 +190,13 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         $_cachePath = $this->getCachePath();
 
         //Delete the encoded file first to ensure old entries such as limits are removed when deleted.
-        if (file_exists($this->getCacheFile())) {
+        if (file_exists($this->getCacheFilePath())) {
             /* Forces cache invalidation on next api call */
             $this->config['.expires'] = 0;
         } else {
             $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
         }
+
         $_cacheFile = Disk::path($_cachePath, true, 0775) . DIRECTORY_SEPARATOR . $_cacheKey;
 
         $this->config['.middleware'] = $this->middleware;
@@ -285,6 +286,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
 
         //  Add in our middleware
         $this->middleware = [
+            //TODO: Remove this middleware for old limits
             'DreamFactory\Managed\Http\Middleware\ImposeClusterLimits',
             'DreamFactory\Managed\Http\Middleware\ClusterAuditor',
         ];
@@ -515,6 +517,11 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             $recursive);
     }
 
+    public function getStoragePrivatePath()
+    {
+        return $this->getConfig('paths.private-path');
+    }
+
     /** @inheritdoc */
     public function getLimitsCachePath($create = false, $mode = 0777, $recursive = true)
     {
@@ -604,8 +611,9 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     /**
      * @return string The cache file name for this instance
      */
-    protected function getCacheFile()
+    protected function getCacheFilePath()
     {
+        $cachePath = $this->getCachePath(true);
         return Disk::path([$this->getCachePath(true), $this->getCacheKey()]);
     }
 

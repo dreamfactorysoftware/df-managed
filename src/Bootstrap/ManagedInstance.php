@@ -1,6 +1,5 @@
 <?php namespace DreamFactory\Managed\Bootstrap;
 
-use DreamFactory\Library\Utility\Disk;
 use DreamFactory\Managed\Contracts\HasMiddleware;
 use DreamFactory\Managed\Enums\BlueMixDefaults;
 use DreamFactory\Managed\Enums\ManagedDefaults;
@@ -10,6 +9,9 @@ use DreamFactory\Managed\Providers\ClusterServiceProvider;
 use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
+use DreamFactory\Library\Utility\Disk;
+use Log;
+
 
 class ManagedInstance
 {
@@ -32,6 +34,7 @@ class ManagedInstance
     public function bootstrap(Application $app)
     {
         //  Detect the type of managed platform
+        $this->platform = $this->detectPlatform();
         if (null !== ($this->platform = $this->detectPlatform())) {
             switch ($this->platform) {
                 case ManagedPlatforms::DREAMFACTORY:
@@ -85,16 +88,18 @@ class ManagedInstance
             return false;
         }
 
+
         $_vars = [
             'DF_CACHE_PREFIX'         => $_cluster->getCachePrefix(),
             'DF_CACHE_PATH'           => $_cluster->getCachePath(),
-            'DF_LIMITS_CACHE_STORE'   => ManagedDefaults::DEFAULT_LIMITS_STORE,
-            'DF_LIMITS_CACHE_PATH'    => Disk::path([$_cluster->getCacheRoot(), '.limits'], true),
+           // 'DF_LIMITS_CACHE_STORE'   => ManagedDefaults::DEFAULT_LIMITS_STORE,
+           // 'DF_LIMITS_CACHE_PATH'    => Disk::path([$_cluster->getCacheRoot(), '.limits'], true),
             'DF_MANAGED_SESSION_PATH' => Disk::path([$_cluster->getCacheRoot(), '.sessions'], true),
             'DF_MANAGED_LOG_FILE'     => $_cluster->getHostName() . '.log',
             'DF_MANAGED'              => true,
             'DB_DRIVER'               => 'mysql',
             'DF_PACKAGE_PATH'         => $_cluster->getPackagePath(),
+
         ];
 
         //  Get the cluster database information
@@ -124,6 +129,13 @@ class ManagedInstance
 
         //  If this is a FastTrack redirect, denote as such
         (null !== ($_guid = $_request->get('fastTrackGuid'))) && $_vars['DF_FAST_TRACK_GUID'] = $_guid;
+
+        /** For DreamFactory limits, if enabled, need to override limit_cache path */
+        if (class_exists('DreamFactory\Core\Limit\ServiceProvider')) {
+            $_vars['LIMIT_CACHE_PATH'] = Disk::path([$_cluster->getStoragePrivatePath(), '.limit_cache'], true);
+            $_vars['LIMIT_CACHE_PREFIX'] = $_cluster->getHostName(true);
+
+        }
 
         //  Now jam everything into the environment
         foreach ($_vars as $_key => $_value) {
