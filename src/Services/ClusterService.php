@@ -15,7 +15,6 @@ use DreamFactory\Managed\Contracts\HasManagedRoutes;
 use DreamFactory\Managed\Contracts\HasMiddleware;
 use DreamFactory\Managed\Contracts\HasRouteMiddleware;
 use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
-use DreamFactory\Managed\Contracts\ProvidesManagedLimits;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Exceptions\ManagedInstanceException;
 use DreamFactory\Managed\Support\ClusterManifest;
@@ -33,7 +32,7 @@ use Illuminate\Filesystem;
  *
  * NOTE: Environment variables take precedence to cluster manifest in some instances (i.e. getLogPath())
  */
-class ClusterService extends BaseService implements ProvidesManagedConfig, ProvidesManagedLimits, HasMiddleware, HasRouteMiddleware, HasManagedRoutes
+class ClusterService extends BaseService implements ProvidesManagedConfig, HasMiddleware, HasRouteMiddleware, HasManagedRoutes
 {
     //******************************************************************************
     //* Constants
@@ -280,15 +279,12 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             'paths'         => (array)$_paths,
             //  Get the database config plucking the first entry if one.
             'db'            => (array)head((array)data_get($_status, 'response.metadata.db', [])),
-            'limits'        => (array)data_get($_status, 'response.metadata.limits', []),
             'overrides'     => (array)data_get($_status, 'response.overrides', []),
         ]);
 
         //  Add in our middleware
         $this->middleware = [
-            //TODO: Remove this middleware for old limits
-            'DreamFactory\Managed\Http\Middleware\ImposeClusterLimits',
-            'DreamFactory\Managed\Http\Middleware\ClusterAuditor',
+            'DreamFactory\Managed\Http\Middleware\ClusterAuditor'
         ];
 
         //  And our route middleware
@@ -522,11 +518,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         return $this->getConfig('paths.private-path');
     }
 
-    /** @inheritdoc */
-    public function getLimitsCachePath($create = false, $mode = 0777, $recursive = true)
-    {
-        return Disk::path([$this->getCacheRoot(), '.limits'], $create, $mode, $recursive);
-    }
+
 
     /** @inheritdoc */
     public function getDatabaseConfig()
@@ -576,18 +568,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         return $this->getIdentifyingKey();
     }
 
-    /**
-     * Return the limits for this instance or an empty array if none.
-     *
-     * @param string|null $key     A key within the limits to retrieve. If omitted, all limits are returned
-     * @param array       $default The default value to return if $key was not found
-     *
-     * @return array|null
-     */
-    public function getLimits($key = null, $default = [])
-    {
-        return $this->getConfig((null === $key) ? 'limits' : 'limits.' . $key, $default);
-    }
+
 
     /**
      * Returns any values to be overwritten.
