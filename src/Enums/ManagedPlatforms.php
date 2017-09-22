@@ -1,6 +1,6 @@
 <?php namespace DreamFactory\Managed\Enums;
 
-use DreamFactory\Library\Utility\Enums\FactoryEnum;
+use DreamFactory\Core\Enums\FactoryEnum;
 
 /**
  * Constants for supported managed platforms

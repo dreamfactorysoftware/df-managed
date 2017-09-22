@@ -15,7 +15,6 @@ use DreamFactory\Managed\Contracts\HasManagedRoutes;
 use DreamFactory\Managed\Contracts\HasMiddleware;
 use DreamFactory\Managed\Contracts\HasRouteMiddleware;
 use DreamFactory\Managed\Contracts\ProvidesManagedConfig;
-use DreamFactory\Managed\Contracts\ProvidesManagedLimits;
 use DreamFactory\Managed\Enums\ManagedDefaults;
 use DreamFactory\Managed\Exceptions\ManagedInstanceException;
 use DreamFactory\Managed\Support\ClusterManifest;
@@ -33,7 +32,7 @@ use Illuminate\Filesystem;
  *
  * NOTE: Environment variables take precedence to cluster manifest in some instances (i.e. getLogPath())
  */
-class ClusterService extends BaseService implements ProvidesManagedConfig, ProvidesManagedLimits, HasMiddleware, HasRouteMiddleware, HasManagedRoutes
+class ClusterService extends BaseService implements ProvidesManagedConfig, HasMiddleware, HasRouteMiddleware, HasManagedRoutes
 {
     //******************************************************************************
     //* Constants
@@ -113,7 +112,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
      */
     public function deleteManagedDataCache()
     {
-        if (file_exists($_cacheFile = $this->getCacheFile())) {
+        if (file_exists($_cacheFile = $this->getCacheFilePath())) {
             return @unlink($_cacheFile);
         }
 
@@ -156,7 +155,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     {
         $_cached = null;
 
-        if (file_exists($_cacheFile = $this->getCacheFile())) {
+        if (file_exists($_cacheFile = $this->getCacheFilePath())) {
             $_cached = JsonFile::decodeFile($_cacheFile);
 
             if (isset($_cached, $_cached['.expires']) && $_cached['.expires'] < time()) {
@@ -190,12 +189,13 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         $_cachePath = $this->getCachePath();
 
         //Delete the encoded file first to ensure old entries such as limits are removed when deleted.
-        if (file_exists($this->getCacheFile())) {
+        if (file_exists($this->getCacheFilePath())) {
             /* Forces cache invalidation on next api call */
             $this->config['.expires'] = 0;
         } else {
             $this->config['.expires'] = time() + (static::CACHE_TTL * 60);
         }
+
         $_cacheFile = Disk::path($_cachePath, true, 0775) . DIRECTORY_SEPARATOR . $_cacheKey;
 
         $this->config['.middleware'] = $this->middleware;
@@ -279,14 +279,12 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             'paths'         => (array)$_paths,
             //  Get the database config plucking the first entry if one.
             'db'            => (array)head((array)data_get($_status, 'response.metadata.db', [])),
-            'limits'        => (array)data_get($_status, 'response.metadata.limits', []),
             'overrides'     => (array)data_get($_status, 'response.overrides', []),
         ]);
 
         //  Add in our middleware
         $this->middleware = [
-            'DreamFactory\Managed\Http\Middleware\ImposeClusterLimits',
-            'DreamFactory\Managed\Http\Middleware\ClusterAuditor',
+            'DreamFactory\Managed\Http\Middleware\ClusterAuditor'
         ];
 
         //  And our route middleware
@@ -515,11 +513,12 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
             $recursive);
     }
 
-    /** @inheritdoc */
-    public function getLimitsCachePath($create = false, $mode = 0777, $recursive = true)
+    public function getStoragePrivatePath()
     {
-        return Disk::path([$this->getCacheRoot(), '.limits'], $create, $mode, $recursive);
+        return $this->getConfig('paths.private-path');
     }
+
+
 
     /** @inheritdoc */
     public function getDatabaseConfig()
@@ -569,18 +568,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
         return $this->getIdentifyingKey();
     }
 
-    /**
-     * Return the limits for this instance or an empty array if none.
-     *
-     * @param string|null $key     A key within the limits to retrieve. If omitted, all limits are returned
-     * @param array       $default The default value to return if $key was not found
-     *
-     * @return array|null
-     */
-    public function getLimits($key = null, $default = [])
-    {
-        return $this->getConfig((null === $key) ? 'limits' : 'limits.' . $key, $default);
-    }
+
 
     /**
      * Returns any values to be overwritten.
@@ -604,8 +592,9 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, Provi
     /**
      * @return string The cache file name for this instance
      */
-    protected function getCacheFile()
+    protected function getCacheFilePath()
     {
+        $cachePath = $this->getCachePath(true);
         return Disk::path([$this->getCachePath(true), $this->getCacheKey()]);
     }
 
