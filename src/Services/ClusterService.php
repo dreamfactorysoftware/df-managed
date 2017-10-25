@@ -227,7 +227,7 @@ class ClusterService extends BaseService implements ProvidesManagedConfig, HasMi
         }
 
         if (data_get($_status, 'response.archived', false) || data_get($_status, 'response.deleted', false)) {
-            throw new \RuntimeException('Instance "' . $_id . '" has been archived and/or deleted.', Response::HTTP_UNPROCESSABLE_ENTITY);
+            throw new \RuntimeException('Instance "' . $_id . '" has been archived and/or deleted. If this is a fast-track instance, more than likely your trial period is over. Please contact DreamFactory Sales or Support.', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         //  Validate domain of this host

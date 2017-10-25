@@ -10,8 +10,9 @@ use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 use DreamFactory\Library\Utility\Disk;
+use Illuminate\Http\Response;
+use Exception;
 use Log;
-
 
 class ManagedInstance
 {
@@ -81,19 +82,17 @@ class ManagedInstance
         try {
             /** @type ClusterService $_cluster */
             $_cluster = ClusterServiceProvider::service($app);
-        } catch (\Exception $_ex) {
+        } catch (Exception $_ex) {
             //  Cluster service not available, or misconfigured. No logger yet so just bail...
-            //logger('[dfe.managed-instance.bootstrap] cluster service unavailable: ' . $_ex->getMessage() . PHP_EOL);
-
-            return false;
+            $response = Response::create($_ex->getMessage(), $_ex->getCode());
+            $response->send();
         }
-
 
         $_vars = [
             'DF_CACHE_PREFIX'         => $_cluster->getCachePrefix(),
             'DF_CACHE_PATH'           => $_cluster->getCachePath(),
-           // 'DF_LIMITS_CACHE_STORE'   => ManagedDefaults::DEFAULT_LIMITS_STORE,
-           // 'DF_LIMITS_CACHE_PATH'    => Disk::path([$_cluster->getCacheRoot(), '.limits'], true),
+            // 'DF_LIMITS_CACHE_STORE'   => ManagedDefaults::DEFAULT_LIMITS_STORE,
+            // 'DF_LIMITS_CACHE_PATH'    => Disk::path([$_cluster->getCacheRoot(), '.limits'], true),
             'DF_MANAGED_SESSION_PATH' => Disk::path([$_cluster->getCacheRoot(), '.sessions'], true),
             'DF_MANAGED_LOG_FILE'     => $_cluster->getHostName() . '.log',
             'DF_MANAGED'              => true,
@@ -115,8 +114,8 @@ class ManagedInstance
         }
 
         $_vars['DF_MANAGED_LOG_PATH'] = rtrim($_vars['DF_MANAGED_LOG_PATH'], '/') .
-                                        DIRECTORY_SEPARATOR .
-                                        $_cluster->getHostName();
+            DIRECTORY_SEPARATOR .
+            $_cluster->getHostName();
 
         //  If this is a console request, denote it as such
         $_vars['DF_CONSOLE_KEY'] = $_cluster->getConsoleKey();
@@ -124,8 +123,9 @@ class ManagedInstance
         //  Is it a console request? Validate
         /** @type Request $_request */
         $_request = $app->make('request');
-        $_vars['DF_IS_VALID_CONSOLE_REQUEST'] = ($_vars['DF_CONSOLE_KEY'] == $_request->header(ManagedDefaults::CONSOLE_X_HEADER,
-                $_request->query('console_key')));
+        $_vars['DF_IS_VALID_CONSOLE_REQUEST'] =
+            ($_vars['DF_CONSOLE_KEY'] == $_request->header(ManagedDefaults::CONSOLE_X_HEADER,
+                    $_request->query('console_key')));
 
         //  If this is a FastTrack redirect, denote as such
         (null !== ($_guid = $_request->get('fastTrackGuid'))) && $_vars['DF_FAST_TRACK_GUID'] = $_guid;
@@ -134,7 +134,6 @@ class ManagedInstance
         if (class_exists('DreamFactory\Core\Limit\ServiceProvider')) {
             $_vars['LIMIT_CACHE_PATH'] = Disk::path([$_cluster->getStoragePrivatePath(), '.limit_cache'], true);
             $_vars['LIMIT_CACHE_PREFIX'] = $_cluster->getHostName(true);
-
         }
 
         //  Now jam everything into the environment
