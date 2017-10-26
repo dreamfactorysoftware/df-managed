@@ -10,6 +10,7 @@ use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 use DreamFactory\Library\Utility\Disk;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Illuminate\Http\Response;
 use Exception;
 use Log;
@@ -84,7 +85,12 @@ class ManagedInstance
             $_cluster = ClusterServiceProvider::service($app);
         } catch (Exception $_ex) {
             //  Cluster service not available, or misconfigured. No logger yet so just bail...
-            $response = Response::create($_ex->getMessage(), $_ex->getCode());
+            $response = Response::create(json_encode([
+                'error' => [
+                    'code' => $_ex->getCode(),
+                    'message' => $_ex->getMessage()
+                ]
+            ], true));
             $response->send();
         }
 
