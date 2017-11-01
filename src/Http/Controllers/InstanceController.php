@@ -3,7 +3,6 @@
 use DreamFactory\Managed\Exceptions\ManagedInstanceException;
 use DreamFactory\Managed\Facades\Cluster;
 use DreamFactory\Managed\Providers\ClusterServiceProvider;
-use DreamFactory\Managed\Http\Middleware\ImposeClusterLimits;
 use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -64,63 +63,6 @@ class InstanceController extends BaseController
     }
 
     /**
-     * Tell an instance to delete a single limits counter from the cache
-     * Endpoint handler for /instance/clear-limits-counter/<cache-key>
-     *
-     * @param string $cacheKey The cache key to delete (i.e., "cluster-dfelocal.test1.minute", "cluster-dfelocal.hour", etc.)
-     *
-     * @return Response
-     */
-    public function deleteClearLimitsCounter($cacheKey)
-    {
-        $_cachePrefix = env('DF_CACHE_PREFIX');
-        putenv('DF_CACHE_PREFIX' . '=' . 'df_limits');
-        $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
-
-        try {
-            ImposeClusterLimits::cache()->forget($cacheKey);
-            logger('[df-managed.instance-controller] "' . $cacheKey . '" limit count reset by console');
-        } catch (\Exception $_ex) {
-            /** @noinspection PhpUndefinedMethodInspection */
-            Log::error('[df-managed.instance-controller] exception clearing limit count: ' . $_ex->getMessage());
-        }
-        finally {
-            //  Ensure the cache prefix is restored
-            putenv('DF_CACHE_PREFIX' . '=' . $_cachePrefix);
-            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
-
-            /** @noinspection PhpUndefinedMethodInspection */
-            return Response::json(['success' => true]);
-        }
-    }
-
-    /**
-     * @return array
-     */
-    public function deleteClearLimitsCache()
-    {
-        $_cachePrefix = env('DF_CACHE_PREFIX');
-        putenv('DF_CACHE_PREFIX' . '=' . 'df_limits');
-        $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = 'df_limits';
-
-        try {
-            ImposeClusterLimits::cache()->flush();
-            logger('[df-managed.instance-controller] limit cache flushed by console');
-        } catch (\Exception $_ex) {
-            /** @noinspection PhpUndefinedMethodInspection */
-            Log::error('[df-managed.instance-controller] exception clearing limit cache: ' . $_ex->getMessage());
-        }
-        finally {
-            //  Ensure the cache prefix is restored
-            putenv('DF_CACHE_PREFIX' . '=' . $_cachePrefix);
-            $_ENV['DF_CACHE_PREFIX'] = $_SERVER['DF_CACHE_PREFIX'] = $_cachePrefix;
-
-            /** @noinspection PhpUndefinedMethodInspection */
-            return Response::json(['success' => true]);
-        }
-    }
-
-    /**
      * Deletes all cached managed data for instance
      *
      * @return Response
@@ -145,7 +87,8 @@ class InstanceController extends BaseController
             $_count = count($_tables);
         } catch (\Exception $_ex) {
             /** @noinspection PhpUndefinedMethodInspection */
-            Log::error('[dfe.instance-api-client.get-instance-table-count] error contacting instance database: ' . $_ex->getMessage());
+            Log::error('[dfe.instance-api-client.get-instance-table-count] error contacting instance database: ' .
+                $_ex->getMessage());
         }
 
         /** @noinspection PhpUndefinedMethodInspection */
