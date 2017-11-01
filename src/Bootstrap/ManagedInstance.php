@@ -10,10 +10,8 @@ use DreamFactory\Managed\Services\ClusterService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 use DreamFactory\Library\Utility\Disk;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Illuminate\Http\Response;
 use Exception;
-use Log;
 
 class ManagedInstance
 {
@@ -82,6 +80,7 @@ class ManagedInstance
 
         try {
             /** @type ClusterService $_cluster */
+            //TODO: Remove clusterServiceProvider and put into ManagedServiceProvider in 5.5. Take out of this bootstrap.
             $_cluster = ClusterServiceProvider::service($app);
         } catch (Exception $_ex) {
             //  Cluster service not available, or misconfigured. No logger yet so just bail...
@@ -97,8 +96,6 @@ class ManagedInstance
         $_vars = [
             'DF_CACHE_PREFIX'         => $_cluster->getCachePrefix(),
             'DF_CACHE_PATH'           => $_cluster->getCachePath(),
-            // 'DF_LIMITS_CACHE_STORE'   => ManagedDefaults::DEFAULT_LIMITS_STORE,
-            // 'DF_LIMITS_CACHE_PATH'    => Disk::path([$_cluster->getCacheRoot(), '.limits'], true),
             'DF_MANAGED_SESSION_PATH' => Disk::path([$_cluster->getCacheRoot(), '.sessions'], true),
             'DF_MANAGED_LOG_FILE'     => $_cluster->getHostName() . '.log',
             'DF_MANAGED'              => true,
