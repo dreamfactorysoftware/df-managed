@@ -1,0 +1,77 @@
+repo_name: dreamfactorysoftware/df-managed
+report_id: d02ffedee99eaf4e4ddbce292981d49f
+repo_type: Public
+timestamp: '2023-12-06T22:37:08+00:00'
+requested_by: chas688
+provider: github
+branch: master
+detected_tools_count: 6
+tools:
+- name: PHP
+  description: A popular general-purpose scripting language that is especially suited
+    to web development
+  website_url: http://www.php.net/
+  open_source: true
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Languages
+  image_url: https://img.stackshare.io/service/991/hwUcGZ41_400x400.jpg
+  detection_source: Repo Metadata
+- name: Laravel
+  description: A PHP Framework For Web Artisans
+  website_url: http://laravel.com/
+  version: '5.2'
+  open_source: false
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Frameworks (Full Stack)
+  image_url: https://img.stackshare.io/service/992/AcA2LnWL_400x400.jpg
+  detection_source_url: github.com/dreamfactorysoftware/df-managed/blob/master/composer.json
+  detection_source: composer.json
+  last_updated_by: Lee Hicks
+  last_updated_on: 2016-10-03 20:07:54.000000000 Z
+- name: Git
+  description: Fast, scalable, distributed revision control system
+  website_url: http://git-scm.com/
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Version Control System
+  image_url: https://img.stackshare.io/service/1046/git.png
+  detection_source: Repo Metadata
+- name: PHPUnit
+  description: Testing framework for PHP
+  website_url: https://phpunit.de/
+  license: BSD-3-Clause
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Testing Frameworks
+  image_url: https://img.stackshare.io/service/1616/1_WsEnddd5Y4EgEHsT054kUQ.jpeg
+  detection_source: composer.json
+  last_updated_by: Jerry Ablan
+  last_updated_on: 2015-08-04 22:35:41.000000000 Z
+- name: laravel/framework
+  description: The Laravel Framework
+  package_url: https://packagist.org/laravel/framework
+  version: '5.2'
+  open_source: false
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Package Managers
+  image_url: https://img.stackshare.io/package/packagist/image.png
+  detection_source_url: github.com/dreamfactorysoftware/df-managed/blob/master/composer.json
+  detection_source: composer.json
+  last_updated_by: Lee Hicks
+  last_updated_on: 2016-10-03 20:07:54.000000000 Z
+- name: phpunit/phpunit
+  description: The PHP Unit Testing framework
+  package_url: https://packagist.org/phpunit/phpunit
+  open_source: false
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Package Managers
+  image_url: https://img.stackshare.io/package/packagist/image.png
+  detection_source: composer.json
+  last_updated_by: Charles Harmon
+  last_updated_on: 2017-09-13 14:37:05.000000000 Z
